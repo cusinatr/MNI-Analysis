@@ -1,0 +1,33 @@
+# Path variables
+base_path: F:\iEEG_neural_dynamics\MNIOpen\Results_gamma
+
+# Folder names
+fif_dir: ProcData
+psd_dir: PSD
+acf_dir: ACF
+
+# Plotting
+saving_format: pdf   # , png, svg, eps
+cond_colors: ['dodgerblue', 'c', 'purple', 'g', 'r']
+stage_colors:
+  wake: r
+  w: r
+  nrem1: dodgerblue
+  n1: dodgerblue
+  nrem2: c
+  n2: c
+  nrem3: purple
+  n3: purple
+  rem: g
+  r: g
+  "": orange
+
+psd:
+  figsizes: [6, 8]
+  xlabel: f [Hz]
+  ylabel: PSD [a.u.]
+
+acf:
+  figsizes: [6, 4]
+  xlabel: Lag [ms]
+  ylabel: Autocorrelation
