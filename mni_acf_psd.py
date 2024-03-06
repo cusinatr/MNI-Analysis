@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.io import loadmat
 import mne
 from ieeganalysis import PSD, SpectralParam, ACF, TAU
-from ieegtausleep.utils import convert_knee_tau
+from mni_utils import convert_knee_tau
 
 ###
 # Analysis parameters

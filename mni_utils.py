@@ -30,6 +30,18 @@ def get_avg_tau_mni(data: pd.DataFrame):
     return data_mni
 
 
+def convert_knee_tau(el_data: pd.Series) -> float:
+    """Get timescale from knee fit, in milliseconds."""
+    # Get knee and exponent
+    knee = el_data["knee"]
+    exp = el_data["exp"]
+
+    # Knee frequency
+    knee_freq = knee ** (1 / exp)
+
+    return 1000 / (2 * np.pi * knee_freq)  # 1000 to convert to ms
+
+
 ###
 # Functions for creating Raw and Epochs
 ###
