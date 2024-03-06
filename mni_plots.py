@@ -345,6 +345,7 @@ def bar_plot(
     )
     ax.tick_params(axis="y", which="both", labelsize=fsize.TICK_SIZE)
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
+    _format_spines(ax)
 
     return ax
 

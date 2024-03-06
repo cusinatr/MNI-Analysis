@@ -15,6 +15,7 @@ import mni_utils as uti
 
 base_path = Path("F:\\iEEG_neural_dynamics\\MNIOpen")
 mmp_name = "MMP_in_MNI_symmetrical_1.nii.gz"
+# mmp_macro_name = "mmp_macro.csv"
 out_dir = "Results_SC_gamma"
 dist_bins = np.arange(0, 101, 5)  # bins to use as distances
 freq_band = True
@@ -29,6 +30,7 @@ fit_bins = True
 res_path = base_path.joinpath(out_dir)
 res_path.mkdir(parents=True, exist_ok=True)
 mmp_path = base_path.joinpath(mmp_name)
+# mmp_macro_path = base_path.joinpath(mmp_macro_name)
 
 ###
 # Import data
@@ -150,7 +152,7 @@ for stage in ["W", "N3", "R"]:
     file_name += "_bins" if fit_bins else ""
     df_params.to_csv(res_path.joinpath(file_name + ".csv"))
 
-    # Then, one fit per MMP region
+    # Then, one fit per MMP "macro" region
     df_params = []
     for reg in df_sc_stages[stage]["mmp_1"].unique():
         df_sc_reg = df_sc_stages[stage][

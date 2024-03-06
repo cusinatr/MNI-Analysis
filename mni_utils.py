@@ -14,7 +14,16 @@ import statsmodels.formula.api as smf
 ###
 
 
-def get_avg_tau_mni(data: pd.DataFrame):
+def get_avg_tau_mni(data: pd.DataFrame) -> pd.Series:
+    """Get average timescale per parcel of the MNI atlas.
+    Uses a mixed model to account for different patients.
+
+    Args:
+        data (pd.DataFrame): tau values, patients and regions.
+
+    Returns:
+        pd.Series: Aggregated tau values.
+    """
 
     # Remove NaN if present
     data = data.dropna()
