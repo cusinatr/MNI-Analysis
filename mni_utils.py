@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 from scipy import optimize, spatial
+from scipy.stats import pearsonr, spearmanr
 import mne
 import nibabel as nib
 import statistics
@@ -534,6 +535,7 @@ def fit_sc_bins(df_sc_bin: pd.DataFrame):
 # The following methods are imported from the netneurotools package (https://github.com/netneurolab/netneurotools)
 ###
 
+
 def _gen_rotation(seed=None):
     """
     Generate random matrix for rotating spherical coordinates.
@@ -565,9 +567,17 @@ def _gen_rotation(seed=None):
     return rotate_l, rotate_r
 
 
-def gen_spinsamples(coords, hemiid, n_rotate=1000, check_duplicates=True,
-                    method='original', exact=False, seed=None, verbose=False,
-                    return_cost=False):
+def gen_spinsamples(
+    coords,
+    hemiid,
+    n_rotate=1000,
+    check_duplicates=True,
+    method="original",
+    exact=False,
+    seed=None,
+    verbose=False,
+    return_cost=False,
+):
     """
     Return a resampling array for `coords` obtained from rotations / spins.
 
@@ -685,42 +695,52 @@ def gen_spinsamples(coords, hemiid, n_rotate=1000, check_duplicates=True,
 
     .. [ST5] https://github.com/spin-test/spin-test
     """
-    methods = ['original', 'vasa', 'hungarian']
+    methods = ["original", "vasa", "hungarian"]
     if method not in methods:
-        raise ValueError('Provided method "{}" invalid. Must be one of {}.'
-                         .format(method, methods))
+        raise ValueError(
+            'Provided method "{}" invalid. Must be one of {}.'.format(method, methods)
+        )
 
     if exact:
-        warnings.warn('The `exact` parameter will no longer be supported in '
-                      'an upcoming release. Please use the `method` parameter '
-                      'instead.', DeprecationWarning, stacklevel=3)
-        if exact == 'vasa' and method == 'original':
-            method = 'vasa'
-        elif exact and method == 'original':
-            method = 'hungarian'
+        warnings.warn(
+            "The `exact` parameter will no longer be supported in "
+            "an upcoming release. Please use the `method` parameter "
+            "instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        if exact == "vasa" and method == "original":
+            method = "vasa"
+        elif exact and method == "original":
+            method = "hungarian"
 
     seed = check_random_state(seed)
 
     coords = np.asanyarray(coords)
-    hemiid = np.squeeze(np.asanyarray(hemiid, dtype='int8'))
+    hemiid = np.squeeze(np.asanyarray(hemiid, dtype="int8"))
 
     # check supplied coordinate shape
     if coords.shape[-1] != 3 or coords.squeeze().ndim != 2:
-        raise ValueError('Provided `coords` must be of shape (N, 3), not {}'
-                         .format(coords.shape))
+        raise ValueError(
+            "Provided `coords` must be of shape (N, 3), not {}".format(coords.shape)
+        )
 
     # ensure hemisphere designation array is correct
     if hemiid.ndim != 1:
-        raise ValueError('Provided `hemiid` array must be one-dimensional.')
+        raise ValueError("Provided `hemiid` array must be one-dimensional.")
     if len(coords) != len(hemiid):
-        raise ValueError('Provided `coords` and `hemiid` must have the same '
-                         'length. Provided lengths: coords = {}, hemiid = {}'
-                         .format(len(coords), len(hemiid)))
+        raise ValueError(
+            "Provided `coords` and `hemiid` must have the same "
+            "length. Provided lengths: coords = {}, hemiid = {}".format(
+                len(coords), len(hemiid)
+            )
+        )
     if np.max(hemiid) > 1 or np.min(hemiid) < 0:
-        raise ValueError('Hemiid must have values in {0, 1} denoting left and '
-                         'right hemisphere coordinates, respectively. '
-                         + 'Provided array contains values: {}'
-                         .format(np.unique(hemiid)))
+        raise ValueError(
+            "Hemiid must have values in {0, 1} denoting left and "
+            "right hemisphere coordinates, respectively. "
+            + "Provided array contains values: {}".format(np.unique(hemiid))
+        )
 
     # empty array to store resampling indices
     spinsamples = np.zeros((len(coords), n_rotate), dtype=int)
@@ -728,21 +748,21 @@ def gen_spinsamples(coords, hemiid, n_rotate=1000, check_duplicates=True,
     inds = np.arange(len(coords), dtype=int)
 
     # generate rotations and resampling array!
-    msg, warned = '', False
+    msg, warned = "", False
     for n in range(n_rotate):
         count, duplicated = 0, True
 
         if verbose:
-            msg = 'Generating spin {:>5} of {:>5}'.format(n, n_rotate)
-            print(msg, end='\r', flush=True)
+            msg = "Generating spin {:>5} of {:>5}".format(n, n_rotate)
+            print(msg, end="\r", flush=True)
 
         while duplicated and count < 500:
             count, duplicated = count + 1, False
-            resampled = np.zeros(len(coords), dtype='int32')
+            resampled = np.zeros(len(coords), dtype="int32")
 
             # rotate each hemisphere separately
             for h, rot in enumerate(_gen_rotation(seed=seed)):
-                hinds = (hemiid == h)
+                hinds = hemiid == h
                 coor = coords[hinds]
                 if len(coor) == 0:
                     continue
@@ -752,10 +772,10 @@ def gen_spinsamples(coords, hemiid, n_rotate=1000, check_duplicates=True,
                 # distance matrix which is a nightmare with respect to memory
                 # for anything that isn't parcellated data.
                 # that is, don't do this with vertex coordinates!
-                if method == 'vasa':
+                if method == "vasa":
                     dist = spatial.distance_matrix(coor, coor @ rot)
                     # min of max a la Vasa et al., 2018
-                    col = np.zeros(len(coor), dtype='int32')
+                    col = np.zeros(len(coor), dtype="int32")
                     for _ in range(len(dist)):
                         # find parcel whose closest neighbor is farthest away
                         # overall; assign to that
@@ -769,7 +789,7 @@ def gen_spinsamples(coords, hemiid, n_rotate=1000, check_duplicates=True,
                 # may result in certain parcels having higher cost than with
                 # `method='vasa'` but should always result in the total cost
                 # being lower #tradeoffs
-                elif method == 'hungarian':
+                elif method == "hungarian":
                     dist = spatial.distance_matrix(coor, coor @ rot)
                     row, col = optimize.linear_sum_assignment(dist)
                     cost[hinds, n] = dist[row, col]
@@ -778,7 +798,7 @@ def gen_spinsamples(coords, hemiid, n_rotate=1000, check_duplicates=True,
                 # required) which is _much_ lighter on memory
                 # huge thanks to https://stackoverflow.com/a/47779290 for this
                 # memory-efficient method
-                elif method == 'original':
+                elif method == "original":
                     dist, col = spatial.cKDTree(coor @ rot).query(coor, 1)
                     cost[hinds, n] = dist
 
@@ -797,16 +817,74 @@ def gen_spinsamples(coords, hemiid, n_rotate=1000, check_duplicates=True,
         # this should only be triggered if check_duplicates is set to True
         if count == 500 and not warned:
             warnings.warn(
-                'Duplicate rotations used. Check resampling array '
-                'to determine real number of unique permutations.', stacklevel=2)
+                "Duplicate rotations used. Check resampling array "
+                "to determine real number of unique permutations.",
+                stacklevel=2,
+            )
             warned = True
 
         spinsamples[:, n] = resampled
 
     if verbose:
-        print(' ' * len(msg) + '\b' * len(msg), end='', flush=True)
+        print(" " * len(msg) + "\b" * len(msg), end="", flush=True)
 
     if return_cost:
         return spinsamples, cost
 
     return spinsamples
+
+
+def get_pcorr(
+    x: np.ndarray,
+    y: np.ndarray,
+    map_coords: np.ndarray,
+    hemiid=None,
+    nspins=1000,
+    method="original",
+    corr_type="spearman",
+):
+    """_summary_
+
+    Args:
+        x (np.ndarray): _description_
+        y (np.ndarray): _description_
+        map_coords (np.ndarray): _description_
+        hemiid (_type_, optional): _description_. Defaults to None.
+        nspins (int, optional): _description_. Defaults to 1000.
+        method (str, optional): _description_. Defaults to "original".
+        corr_type (str, optional): _description_. Defaults to "spearman".
+
+    Returns:
+        _type_: _description_
+    """
+
+    # Check hemiid
+    if hemiid is None:
+        # Assume map is symmetric around half
+        n = map_coords.shape[0] // 2
+        hemiid = np.concatenate([np.zeros(n), np.ones(n)]).astype(int)
+
+    # Generate permuted maps
+    print(f"Generating {nspins} permutations...")
+    spins = gen_spinsamples(map_coords, hemiid, nspins, method, seed=290496)
+
+    # Compute correlation on real data
+    if corr_type == "spearman":
+        corr_func = spearmanr
+    elif corr_type == "pearson":
+        corr_func = pearsonr
+    rho, _ = corr_func(x, y)
+
+    # Compute correlation on permuted data
+    permuted_p = np.zeros(nspins)
+    # Create "copies" of x and y for the two hemispheres
+    xx = np.concatenate([x, x])
+    yy = np.concatenate([y, y])
+    for spin in range(nspins):
+        permuted_p[spin] = corr_func(xx[spins[:, spin]], yy)[0]
+
+    # Compute p-value
+    permmean = np.mean(permuted_p)
+    p_corr = (abs(permuted_p - permmean) > abs(rho - permmean)).mean()
+
+    return rho, p_corr
