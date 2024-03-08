@@ -15,14 +15,28 @@ rcParams.update(rcParamsDefault)
 ###
 # Helpers
 ###
+
+
+class color:
+    """Store plots objects' colors"""
+
+    W = "r"
+    N3 = "purple"
+    R = "g"
+    corr = "k"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
+    END = "\033[0m"
+
+
 class fsize:
     """Store plots objects' fontsizes"""
 
-    TEXT_SIZE = 8
-    MEANS_SIZE = 8
+    TEXT_SIZE = 12
+    MEANS_SIZE = 12
     TITLE_SIZE = 15
-    TICK_SIZE = 8
-    LABEL_SIZE = 10
+    TICK_SIZE = 10
+    LABEL_SIZE = 12
 
 
 def _set_font_params():
@@ -49,11 +63,23 @@ def _format_spines(ax, s_inv=["top", "right"], s_bounds={}):
         ax.spines[s].set_bounds(b[0], b[1])
 
 
+# Create decorator to automatically set font parameters
+def set_fonts(func):
+    def inner(*args, **kwargs):
+        _set_font_params()
+        res = func(*args, **kwargs)
+        _reset_default_rc()
+        return res
+
+    return inner
+
+
 ###
 # Plots
 ###
 
 
+@set_fonts
 def plot_conds_regs(
     ax: plt.axes,
     df_plot: pd.DataFrame,
@@ -234,11 +260,10 @@ def plot_conds_regs(
             leg_names.append(cond)
     ax.legend(leg, leg_names, frameon=False, fontsize=fsize.TEXT_SIZE)
 
-    _reset_default_rc()
-
     return ax
 
 
+@set_fonts
 def plot_parcellated_metric(
     parc_metric: np.ndarray,
     parc_labels: np.ndarray,
@@ -250,6 +275,23 @@ def plot_parcellated_metric(
     cmap="inferno",
     label="Timescales [ms]",
 ):
+    """Plot parcellated metric on inflated brain.
+
+    Args:
+        parc_metric (np.ndarray): _description_
+        parc_labels (np.ndarray): _description_
+        subjects_dir (str): _description_
+        log_scale (bool, optional): _description_. Defaults to False.
+        minmax (tuple, optional): _description_. Defaults to (None, None).
+        zero_center (bool, optional): _description_. Defaults to False.
+        title (str, optional): _description_. Defaults to "".
+        cmap (str, optional): _description_. Defaults to "inferno".
+        label (str, optional): _description_. Defaults to "Timescales [ms]".
+
+    Returns:
+        _type_: _description_
+    """
+
     Brain = get_brain_class()
     brain = Brain(
         "fsaverage",
@@ -319,6 +361,7 @@ def plot_parcellated_metric(
     return fig, ax
 
 
+@set_fonts
 def bar_plot(
     ax: plt.Axes,
     df_plot: pd.DataFrame,
@@ -326,6 +369,19 @@ def bar_plot(
     y_label="Timescale [ms]",
     title="",
 ):
+    """_summary_
+
+    Args:
+        ax (plt.Axes): _description_
+        df_plot (pd.DataFrame): _description_
+        y_lim (tuple, optional): _description_. Defaults to (None, None).
+        y_label (str, optional): _description_. Defaults to "Timescale [ms]".
+        title (str, optional): _description_. Defaults to "".
+
+    Returns:
+        _type_: _description_
+    """
+
     ax.bar(range(len(df_plot)), df_plot["mean"].sort_values(), color="k", alpha=0.5)
     ax.errorbar(
         range(len(df_plot)),
@@ -350,6 +406,7 @@ def bar_plot(
     return ax
 
 
+@set_fonts
 def mni_plot(
     df_plot: pd.DataFrame,
     df_regions_len: pd.DataFrame,
@@ -401,22 +458,27 @@ def mni_plot(
             df_regions_len.index[i + 1],
             ha="center",
             va="center",
-            fontsize=10,
+            fontsize=fsize.TEXT_SIZE,
         )
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
 
     return fig, ax
 
 
+@set_fonts
 def plot_struct_corr(
     ax: plt.Axes,
     x: np.ndarray,
     y: np.ndarray,
-    rand_obj,
-    corr_type="spearman",
-    stage="",
+    rho: float,
+    p_corr: float,
+    # rand_obj,
+    # corr_type="spearman",
+    xy_annot=(0.7, 0.85),
     color="k",
     title="",
+    xlims=None,
+    ylims=None,
 ):
     """Plot correlation of structure and timescales.
 
@@ -434,41 +496,43 @@ def plot_struct_corr(
         ax: plotted Axes object
     """
 
-    if corr_type == "spearman":
-        corr_func = spearmanr
-    elif corr_type == "pearson":
-        corr_func = pearsonr
-
-    rho, p = corr_func(x, y)
-
-    # Compute corrected p-value
-    msr_nulls = rand_obj.randomize(y)
-    rho_null = np.array([corr_func(x, n_)[0] for n_ in msr_nulls])
-    pv_perm = (abs(rho) < abs(rho_null)).sum() / msr_nulls.shape[0]
-    print(
-        f"Correlation between T1T2 and tau in {stage}: rho={rho}, p-corr={pv_perm} (p={p})"
-    )
+    # Compute linear regression
+    m, q, _, _, _ = linregress(x, y)
 
     # Plot
-    ax.scatter(x, y, c=color, s=16, alpha=0.8)
     x_plot = np.linspace(x.min(), x.max(), 100)
-    m, q, _, _, _ = linregress(x, y)
+    ax.scatter(x, y, c=color, s=16, alpha=0.6)
     ax.plot(x_plot, m * x_plot + q, c=color, lw=2, ls="--")
-    ax.set_xlabel("T1w/T2w (hierarchy)", fontsize=15)
-    ax.set_ylabel("Timescale [ms]", fontsize=15)
-    ax.set_title(title)
-    _format_spines(ax)
 
-    # Add correlation values
-    x_text, y_text = ax.get_xlim()[1] * 0.7, ax.get_ylim()[1] * 0.95
-    ax.text(
-        x_text, y_text, f"rho={rho:.2f}\np={p:.3f}\np_corr={pv_perm:.3f}", fontsize=10
+    # Plot parameters
+    ax.set_xlim(xlims)
+    ax.set_ylim(ylims)
+    ax.tick_params(axis='both', which='both', labelsize=fsize.TICK_SIZE)
+    ax.set_xlabel("T1w/T2w (hierarchy)", fontsize=fsize.LABEL_SIZE)
+    ax.set_ylabel("Timescale [ms]", fontsize=fsize.LABEL_SIZE)
+    ax.set_title(title, fontsize=fsize.TITLE_SIZE)
+    if xlims is not None:
+        _format_spines(ax, s_bounds={"bottom": xlims, "left": ylims})
+    else:
+        _format_spines(ax)
+
+    # Annotate regression parameters
+    p_str = r"p$_{\rm corr}$ "
+    p_str += "= " + str(round(p_corr, 3)) if p_corr > 0.001 else "< 0.001"
+    if p_corr < 0.05:
+        p_str += r" $\bf{*}$"
+    ax.annotate(
+        r"$\rho$" + " = " + str(round(rho, 2)) + "\n" + p_str,
+        xy=xy_annot,
+        xycoords="axes fraction",
+        fontsize=fsize.TEXT_SIZE,
     )
 
     return ax
 
 
-def plot_corr_tau_sc(
+@set_fonts
+def plot_sc_corr(
     ax: plt.Axes,
     df_tau: pd.DataFrame,
     df_sc_params: pd.DataFrame,
@@ -512,18 +576,21 @@ def plot_corr_tau_sc(
         lw=3,
     )
 
-    ax.set_ylabel("Spatial parameter", fontsize=15)
-    ax.set_xlabel("Timescale [a.u.]", fontsize=15)
+    ax.set_ylabel("Spatial parameter", fontsize=fsize.LABEL_SIZE)
+    ax.set_xlabel("Timescale [a.u.]", fontsize=fsize.LABEL_SIZE)
     ax.set_title(title)
     _format_spines(ax)
 
     # Add correlation values
     x_text, y_text = ax.get_xlim()[1] * 0.7, ax.get_ylim()[1] * 0.95
-    ax.text(x_text, y_text, f"rho={res[2]:.2f}\np={res[3]:.3f}", fontsize=10)
+    ax.text(
+        x_text, y_text, f"rho={res[2]:.2f}\np={res[3]:.3f}", fontsize=fsize.TEXT_SIZE
+    )
 
     return ax
 
 
+@set_fonts
 def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
 
     # Figure with absolute values
@@ -550,8 +617,8 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
     axs[0].set_xticks(
         axs[0].get_xticks(), axs[0].get_xticklabels(), rotation=45, ha="right"
     )
-    axs[0].set_ylabel("Value", fontsize=10)
-    axs[0].set_title("Timescales across regions", fontsize=15)
+    axs[0].set_ylabel("Value", fontsize=fsize.LABEL_SIZE)
+    axs[0].set_title("Timescales across regions", fontsize=fsize.LABEL_SIZE)
 
     # Figure with relative values (to Wake)
     # TODO: adjust how statisctic is computed
@@ -583,12 +650,13 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
     axs[1].set_xticks(
         axs[1].get_xticks(), axs[1].get_xticklabels(), rotation=45, ha="right"
     )
-    axs[1].set_ylabel("Value", fontsize=10)
-    axs[1].set_title(f"Relative timescales to Wake", fontsize=15)
+    axs[1].set_ylabel("Value", fontsize=fsize.LABEL_SIZE)
+    axs[1].set_title(f"Relative timescales to Wake", fontsize=fsize.TITLE_SIZE)
 
     return fig, axs
 
 
+@set_fonts
 def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict):
 
     fig, axs = plt.subplots(1, 4, figsize=(24, 6))
@@ -613,9 +681,9 @@ def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict):
             lw=2,
             zorder=9,
         )
-        axs[i].set_xlabel("Distance", fontsize=10)
-        axs[i].set_ylabel("Correlation", fontsize=10)
-        axs[i].set_title(f"Spatial correlation - {stage}", fontsize=15)
+        axs[i].set_xlabel("Distance", fontsize=fsize.LABEL_SIZE)
+        axs[i].set_ylabel("Correlation", fontsize=fsize.LABEL_SIZE)
+        axs[i].set_title(f"Spatial correlation - {stage}", fontsize=fsize.TITLE_SIZE)
         _format_spines(axs[i])
 
     # Last subplot with comparison between fits
@@ -629,9 +697,9 @@ def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict):
             c=colors_stage[stage],
             lw=2,
         )
-    axs[-1].set_xlabel("Distance", fontsize=10)
-    axs[-1].set_ylabel("Correlation", fontsize=10)
-    axs[-1].set_title("Max correlation - fit all stages", fontsize=15)
+    axs[-1].set_xlabel("Distance", fontsize=fsize.LABEL_SIZE)
+    axs[-1].set_ylabel("Correlation", fontsize=fsize.LABEL_SIZE)
+    axs[-1].set_title("Max correlation - fit all stages", fontsize=fsize.TITLE_SIZE)
     _format_spines(axs[-1])
 
     return fig, axs
