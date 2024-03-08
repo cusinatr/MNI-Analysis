@@ -14,8 +14,10 @@ from mni_utils import convert_knee_tau
 # Epochs parameters
 epo_dur = 1
 epo_overlap = 0.5
+
 # Gamma band
 gamma_freqs = [40, 80]  # Hz
+
 # ACF / Tau parameters
 compute_acf = True
 nlags = 100  # compute all lags

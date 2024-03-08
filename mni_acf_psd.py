@@ -2,9 +2,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from scipy.io import loadmat
-import mne
 from ieeganalysis import PSD, SpectralParam, ACF, TAU
-from mni_utils import convert_knee_tau
+import mni_utils as uti
 
 ###
 # Analysis parameters
@@ -13,23 +12,27 @@ from mni_utils import convert_knee_tau
 # Epochs parameters
 epo_dur = 1
 epo_overlap = 0.5
+
 # ACF / Tau parameters
-compute_acf = False
+compute_acf = True
 nlags = 100
 tau_mode = "fit"  # fit, interp
+fit_func = "exp"  # exp_oscill, exp, double_exp
+fit_range = [0.005, 0.5]
+
 # PSD / SpectralParam parameters
-compute_psd = True
+compute_psd = False
 fit_mode = "fixed"  # knee, fixed
 frange_fit = [30, 45]
 
 # Output folder
-out_dir = "Results_psd_exp_30-45"    # needs to match that in .yml file
+out_dir = "Results_acf_fit_exp"  # needs to match that in .yml file
 
 ###
 # Paths
 ###
 
-base_path = Path("D:\\iEEG_neural_dynamics\\MNIOpen")
+base_path = Path("F:\\iEEG_neural_dynamics\\MNIOpen")
 res_path = base_path.joinpath(out_dir)
 res_path.mkdir(parents=True, exist_ok=True)
 config_path = Path(__file__).parent.joinpath("config_mni.yml")
@@ -170,89 +173,67 @@ for i_p, pat in enumerate(pats):
         df_knee_pat_stage["mni_y"] = df_info_pat["mni_y"].to_list()
         df_knee_pat_stage["mni_z"] = df_info_pat["mni_z"].to_list()
 
-        # Detect nan channels
-        chans_nan = np.array(chans_pat)[
-            np.where(np.all(np.isnan(data_stage_pat), axis=1))[0]
-        ]
-        chans_good = [ch for ch in chans_pat if ch not in chans_nan]
+        # Raw
+        raw_stage_pat, idx_good, idx_nan = uti.create_RawMNE(
+            data_stage_pat, chans_pat, sfreq, return_all=True
+        )
 
-        if chans_good:
-            idx_good = [i for i, ch in enumerate(chans_pat) if ch in chans_good]
-            idx_nan = [i for i, ch in enumerate(chans_pat) if ch in chans_nan]
-            info_stage_pat = mne.create_info(chans_good, sfreq, ch_types="seeg")
-            raw_stage_pat = mne.io.RawArray(data_stage_pat[idx_good], info_stage_pat)
-
-            # Detect flat time segments
-            idx_flat = np.where(np.all(raw_stage_pat._data == 0, axis=0))[0]
-            if idx_flat.size > 0:
-                flat_start = [idx_flat[0]]
-                flat_end = []
-                idx_flat_diff = np.where(np.diff(idx_flat) != 1)[0]
-                if idx_flat_diff.size > 0:
-                    flat_start.extend(idx_flat[idx_flat_diff + 1])
-                    flat_end.extend(idx_flat[idx_flat_diff])
-                if idx_flat[-1] not in flat_end:
-                    flat_end.append(idx_flat[-1])
-                flat_annot = mne.Annotations(
-                    onset=flat_start / sfreq,
-                    duration=(np.array(flat_end) - np.array(flat_start)) / sfreq,
-                    description="bad",
-                )
-                raw_stage_pat.set_annotations(flat_annot)
-
-            # Epochs
-            epo_stage_pat = mne.make_fixed_length_epochs(
-                raw_stage_pat, duration=epo_dur, overlap=epo_overlap, preload=True
-            )
-
-            # ACF
-            if compute_acf:
-                patACF.prepare_data(epochs=epo_stage_pat, stage=stage)
-                acf_stage_pat = patACF.compute_acf(nlags=nlags, label="")
-                # TAU
-                patTAU.prepare_data(acf_stage_pat, stage=stage, label=stage)
-                tau_stage_pat = patTAU.compute_timescales(
-                    mode=tau_mode, fit_func="exp_oscill", fit_range=[0.001, 0.3]
-                )
-                patTAU.plot_timescales()
-                # Save data
-                df_tau_pat_stage.loc[idx_good, "tau"] = [
-                    v for k, v in tau_stage_pat.items() if k in chans_good
-                ]
-                df_tau_pat_stage.loc[idx_nan, "tau"] = np.nan
-            # PSD
-            if compute_psd:
-                patPSD.prepare_data(epochs=epo_stage_pat, stage=stage)
-                psd_stage_pat = patPSD.compute_psd(f_band=[1, 80], label="")
-                # Spectral Param
-                patSP.prepare_data(psd_stage_pat, stage=stage, label=stage)
-                fg_stage_pat = patSP.parametrize_psd(
-                    frange=frange_fit, aperiodic_mode=fit_mode, save_full=False
-                )
-                patSP.plot_parametrization(plot_range=[1, 80])
-                # Save data
-                if fit_mode == "knee":
-                    knee_stage_pat = convert_knee_tau(
-                        {
-                            "knee": fg_stage_pat.get_params("aperiodic_params", "knee"),
-                            "exp": fg_stage_pat.get_params("aperiodic_params", "exponent"),
-                        }
-                    )
-                else:
-                    knee_stage_pat = np.array([np.nan] * len(fg_stage_pat))
-                exp_stage_pat = fg_stage_pat.get_params("aperiodic_params", "exponent")
-                r2_stage_pat = fg_stage_pat.get_params("r_squared")
-            
-                df_knee_pat_stage.loc[idx_good, "tau"] = knee_stage_pat
-                df_knee_pat_stage.loc[idx_nan, "tau"] = np.nan
-                df_knee_pat_stage.loc[idx_good, "exp"] = exp_stage_pat
-                df_knee_pat_stage.loc[idx_nan, "exp"] = np.nan
-                df_knee_pat_stage.loc[idx_good, "r2"] = r2_stage_pat
-                df_knee_pat_stage.loc[idx_nan, "r2"] = np.nan
-
-        else:
+        # Append nans if no good channel is found
+        if raw_stage_pat is None:
             df_tau_pat_stage["tau"] = np.nan
             df_knee_pat_stage["tau"] = np.nan
+            df_tau_pat.append(df_tau_pat_stage)
+            df_knee_pat.append(df_knee_pat_stage)
+            continue
+
+        # Get epochs
+        epo_stage_pat = uti.create_epo(raw_stage_pat)
+
+        # ACF
+        if compute_acf:
+            patACF.prepare_data(epochs=epo_stage_pat, stage=stage)
+            acf_stage_pat = patACF.compute_acf(nlags=nlags, label="")
+            # TAU
+            patTAU.prepare_data(acf_stage_pat, stage=stage, label=stage)
+            tau_stage_pat = patTAU.compute_timescales(
+                mode=tau_mode, fit_func=fit_func, fit_range=fit_range
+            )
+            patTAU.plot_timescales()
+            # Save data
+            chans_good = [chans_pat[i] for i in idx_good]
+            df_tau_pat_stage.loc[idx_good, "tau"] = [
+                v for k, v in tau_stage_pat.items() if k in chans_good
+            ]
+            df_tau_pat_stage.loc[idx_nan, "tau"] = np.nan
+        # PSD
+        if compute_psd:
+            patPSD.prepare_data(epochs=epo_stage_pat, stage=stage)
+            psd_stage_pat = patPSD.compute_psd(f_band=[1, 80], label="")
+            # Spectral Param
+            patSP.prepare_data(psd_stage_pat, stage=stage, label=stage)
+            fg_stage_pat = patSP.parametrize_psd(
+                frange=frange_fit, aperiodic_mode=fit_mode, save_full=False
+            )
+            patSP.plot_parametrization(plot_range=[1, 80])
+            # Save data
+            if fit_mode == "knee":
+                knee_stage_pat = uti.convert_knee_tau(
+                    {
+                        "knee": fg_stage_pat.get_params("aperiodic_params", "knee"),
+                        "exp": fg_stage_pat.get_params("aperiodic_params", "exponent"),
+                    }
+                )
+            else:
+                knee_stage_pat = np.array([np.nan] * len(fg_stage_pat))
+            exp_stage_pat = fg_stage_pat.get_params("aperiodic_params", "exponent")
+            r2_stage_pat = fg_stage_pat.get_params("r_squared")
+
+            df_knee_pat_stage.loc[idx_good, "tau"] = knee_stage_pat
+            df_knee_pat_stage.loc[idx_nan, "tau"] = np.nan
+            df_knee_pat_stage.loc[idx_good, "exp"] = exp_stage_pat
+            df_knee_pat_stage.loc[idx_nan, "exp"] = np.nan
+            df_knee_pat_stage.loc[idx_good, "r2"] = r2_stage_pat
+            df_knee_pat_stage.loc[idx_nan, "r2"] = np.nan
 
         df_tau_pat.append(df_tau_pat_stage)
         df_knee_pat.append(df_knee_pat_stage)
