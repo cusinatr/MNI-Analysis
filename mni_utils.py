@@ -17,7 +17,7 @@ from sklearn.utils.validation import check_random_state
 ###
 
 
-def get_avg_tau_mni(data: pd.DataFrame) -> pd.Series:
+def get_avg_tau_mni(data: pd.DataFrame, metric_name="tau") -> pd.Series:
     """Get average timescale per parcel of the MNI atlas.
     Uses a mixed model to account for different patients.
 
@@ -32,7 +32,7 @@ def get_avg_tau_mni(data: pd.DataFrame) -> pd.Series:
     data = data.dropna()
 
     # Mixed model
-    md = smf.mixedlm("tau ~ 0 + region", data, groups=data["pat"])
+    md = smf.mixedlm(metric_name + " ~ 0 + region", data, groups=data["pat"])
     mdf = md.fit()
 
     # Extract fitted parameters
@@ -329,6 +329,7 @@ def compute_SC(
     dist = []
     corr_0 = []
     corr_max = []
+    corrc_max = []
     lag_max = []
 
     for pat in df_info["pat"].unique():
@@ -411,8 +412,11 @@ def compute_SC(
                     corr_avg.append(corr)
                 corr_avg = np.array(corr_avg).mean(axis=0)
                 corr_0.append(corr_avg[lags == 0][0])
-                corr_max.append(np.max(corr_avg))
-                lag_max.append(lags[np.argmax(corr_avg)])
+                corr_max.append(np.max(np.abs(corr_avg)))
+                # Compute also "corrected" correlation
+                corrc_avg = corr_avg - corr_avg[::-1]  # corr(tau) - corr(-tau)
+                corrc_max.append(np.max(np.abs(corrc_avg[lags >= 0])))
+                lag_max.append(lags[np.argmax(np.abs(corr_avg))])
 
     df_sc = pd.DataFrame(
         columns=[
@@ -427,6 +431,7 @@ def compute_SC(
             "dist",
             "corr_0",
             "corr_max",
+            "corrc_max",
             "lag_max",
         ]
     )
@@ -442,6 +447,7 @@ def compute_SC(
     df_sc["dist"] = dist
     df_sc["corr_0"] = corr_0
     df_sc["corr_max"] = corr_max
+    df_sc["corrc_max"] = corrc_max
     df_sc["lag_max"] = lag_max
 
     return df_sc
@@ -461,22 +467,28 @@ def compute_sc_bin(df_sc: pd.DataFrame, bins: np.ndarray) -> pd.DataFrame:
     bins_cat, bins_values = pd.cut(df_sc["dist"], bins=bins, retbins=True)
 
     # Create new dataframes for binned spatial correlations
-    df_sc_bin_avg = pd.DataFrame(columns=["dist", "bin", "corr_0", "corr_max"])
-    df_sc_bin_sem = pd.DataFrame(columns=["dist", "corr_0_sem", "corr_max_sem"])
+    df_sc_bin_avg = pd.DataFrame(
+        columns=["dist", "bin", "corr_0", "corr_max", "corrc_max"]
+    )
+    df_sc_bin_sem = pd.DataFrame(
+        columns=["dist", "corr_0_sem", "corr_max_sem", "corrc_max_sem"]
+    )
     df_sc_bin_avg["dist"] = bins_cat
     df_sc_bin_sem["dist"] = bins_cat
 
     # Compute average and sem for each bin
     df_sc_bin_avg["corr_0"] = df_sc["corr_0"].abs()
     df_sc_bin_avg["corr_max"] = df_sc["corr_max"]
+    df_sc_bin_avg["corrc_max"] = df_sc["corrc_max"]
     df_sc_bin_sem["corr_0_sem"] = df_sc["corr_0"].abs()
     df_sc_bin_sem["corr_max_sem"] = df_sc["corr_max"]
+    df_sc_bin_sem["corrc_max_sem"] = df_sc["corrc_max"]
 
     # Reset bins index and compute sem
-    df_sc_bin_avg = df_sc_bin_avg.groupby("dist").mean()
+    df_sc_bin_avg = df_sc_bin_avg.groupby("dist", observed=False).mean()
     df_sc_bin_avg["bin"] = bins_values[:-1] + np.diff(bins_values) / 2
     df_sc_bin_avg.reset_index(inplace=True, drop=True)
-    df_sc_bin_sem = df_sc_bin_sem.groupby("dist").sem()
+    df_sc_bin_sem = df_sc_bin_sem.groupby("dist", observed=False).sem()
     df_sc_bin_sem.reset_index(inplace=True, drop=True)
     df_sc_bin = pd.concat([df_sc_bin_avg, df_sc_bin_sem], axis=1)
     df_sc_bin.dropna(inplace=True)
@@ -499,7 +511,7 @@ def fit_sc(df_sc: pd.DataFrame):
             _exp_decay,
             x,
             y,
-            bounds=((0, 0, -1), (100, 1, 1)),
+            bounds=((0, 0, 0), (100, 1, 1)),
         )
     except RuntimeError:
         popt = np.array([np.nan, np.nan, np.nan])
@@ -521,7 +533,7 @@ def fit_sc_bins(df_sc_bin: pd.DataFrame):
             x,
             y,
             sigma=y_err,
-            bounds=((0, 0, -1), (100, 1, 1)),
+            bounds=((0, 0, 0), (100, 1, 1)),
         )
     except RuntimeError:
         popt = np.array([np.nan, np.nan, np.nan])
@@ -882,6 +894,62 @@ def get_pcorr(
     yy = np.concatenate([y, y])
     for spin in range(nspins):
         permuted_p[spin] = corr_func(xx[spins[:, spin]], yy)[0]
+
+    # Compute p-value
+    permmean = np.mean(permuted_p)
+    p_corr = (abs(permuted_p - permmean) > abs(rho - permmean)).mean()
+
+    return rho, p_corr
+
+
+def get_pcorr_mnia(
+    x: pd.DataFrame,
+    y: pd.DataFrame,
+    map_coords: pd.DataFrame,
+    hemiid=None,
+    nspins=1000,
+    method="original",
+    corr_type="spearman",
+):
+
+    # Separate cortical and amygdala/hippocampus regions
+    x_ctx = x.drop(["Amygdala", "Hippocampus"])
+    x_ha = x.loc[["Amygdala", "Hippocampus"]].copy()
+    y_ctx = y.drop(["Amygdala", "Hippocampus"])
+    y_ha = y.loc[["Amygdala", "Hippocampus"]].copy()
+
+    # Make sure that coordinates have the same index as the data
+    idx_order = [i[:-3] for i in map_coords.index[: len(map_coords) // 2]]
+    x_ctx = x_ctx.loc[idx_order]
+    y_ctx = y_ctx.loc[idx_order]
+
+    # Check hemiid
+    if hemiid is None:
+        # Assume map is symmetric around half
+        n = map_coords.shape[0] // 2
+        hemiid = np.concatenate([np.zeros(n), np.ones(n)]).astype(int)
+
+    # Generate permuted maps
+    print(f"Generating {nspins} permutations...")
+    spins = gen_spinsamples(map_coords.to_numpy(), hemiid, nspins, method, seed=290496)
+
+    # Compute correlation on real data
+    if corr_type == "spearman":
+        corr_func = spearmanr
+    elif corr_type == "pearson":
+        corr_func = pearsonr
+    rho, _ = corr_func(x, y)
+
+    # Compute correlation on permuted data
+    permuted_p = np.zeros(nspins)
+    # Create "copies" of x and y for the two hemispheres
+    xx = pd.concat([x_ctx, x_ctx])
+    yy = pd.concat([y_ctx, y_ctx])
+    for spin in range(nspins):
+        # Re-append hip / amy electrodes for computation
+        x_perm = xx.iloc[spins[:, spin]].to_list() + x_ha.to_list() * 2
+        y_perm = yy.to_list() + y_ha.to_list() * 2
+        permuted_p[spin] = corr_func(x_perm, y_perm)[0]
 
     # Compute p-value
     permmean = np.mean(permuted_p)
