@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 from mne.viz import get_brain_class
-from scipy.stats import linregress, spearmanr, pearsonr
+from scipy.stats import linregress, spearmanr, pearsonr, t
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import seaborn as sns
 from matplotlib import rcParams, rcParamsDefault, colors
@@ -63,15 +63,15 @@ def _format_spines(ax, s_inv=["top", "right"], s_bounds={}):
         ax.spines[s].set_bounds(b[0], b[1])
 
 
-# Create decorator to automatically set font parameters
-def set_fonts(func):
-    def inner(*args, **kwargs):
-        _set_font_params()
-        res = func(*args, **kwargs)
-        _reset_default_rc()
-        return res
+# # Create decorator to automatically set font parameters
+# def set_fonts(func):
+#     def inner(*args, **kwargs):
+#         _set_font_params()
+#         res = func(*args, **kwargs)
+#         _reset_default_rc()
+#         return res
 
-    return inner
+#     return inner
 
 
 ###
@@ -79,7 +79,6 @@ def set_fonts(func):
 ###
 
 
-@set_fonts
 def plot_conds_regs(
     ax: plt.axes,
     df_plot: pd.DataFrame,
@@ -130,6 +129,8 @@ def plot_conds_regs(
         plt.axes: modified axes.
     """
 
+    _set_font_params()
+
     # Define regions and conditions
     Regions = df_plot["region"].unique()
     Conds = [s for s in conds_order if s in df_plot["cond"].unique()]
@@ -151,9 +152,6 @@ def plot_conds_regs(
         ticks_regions = np.arange(0, (n_conds - 1) * len(Regions), n_conds - 1)
     else:
         ticks_regions = np.arange(0, len(Regions))
-
-    # Set fonts
-    _set_font_params()
 
     i = 0
     # Loop through regions
@@ -260,10 +258,11 @@ def plot_conds_regs(
             leg_names.append(cond)
     ax.legend(leg, leg_names, frameon=False, fontsize=fsize.TEXT_SIZE)
 
+    _reset_default_rc()
+
     return ax
 
 
-@set_fonts
 def plot_parcellated_metric(
     parc_metric: np.ndarray,
     parc_labels: np.ndarray,
@@ -291,6 +290,8 @@ def plot_parcellated_metric(
     Returns:
         _type_: _description_
     """
+
+    _set_font_params()
 
     Brain = get_brain_class()
     brain = Brain(
@@ -358,10 +359,11 @@ def plot_parcellated_metric(
     ax.set_yticks([])
     ax.set_title(title)
 
+    _reset_default_rc()
+
     return fig, ax
 
 
-@set_fonts
 def bar_plot(
     ax: plt.Axes,
     df_plot: pd.DataFrame,
@@ -381,6 +383,8 @@ def bar_plot(
     Returns:
         _type_: _description_
     """
+
+    _set_font_params()
 
     ax.bar(range(len(df_plot)), df_plot["mean"].sort_values(), color="k", alpha=0.5)
     ax.errorbar(
@@ -403,10 +407,11 @@ def bar_plot(
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
     _format_spines(ax)
 
+    _reset_default_rc()
+
     return ax
 
 
-@set_fonts
 def mni_plot(
     df_plot: pd.DataFrame,
     df_regions_len: pd.DataFrame,
@@ -417,7 +422,7 @@ def mni_plot(
     title="",
     ax=None,
 ):
-    """Plo MNI regions across stages.
+    """Plot MNI regions across stages.
 
     Args:
         df_plot (pd.DataFrame): dataframe with timescales values.
@@ -432,6 +437,8 @@ def mni_plot(
     Returns:
         fig, ax: Figure and Axes objects.
     """
+
+    _set_font_params()
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(20, 5), layout="constrained")
@@ -462,21 +469,24 @@ def mni_plot(
         )
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
 
+    _reset_default_rc()
+
     return fig, ax
 
 
-@set_fonts
-def plot_struct_corr(
+def plot_corr(
     ax: plt.Axes,
     x: np.ndarray,
     y: np.ndarray,
     rho: float,
     p_corr: float,
-    # rand_obj,
-    # corr_type="spearman",
     xy_annot=(0.7, 0.85),
+    alpha=0.05,
     color="k",
+    color_line=None,
     title="",
+    xlabel="",
+    ylabel="",
     xlims=None,
     ylims=None,
 ):
@@ -496,20 +506,33 @@ def plot_struct_corr(
         ax: plotted Axes object
     """
 
+    _set_font_params()
+
     # Compute linear regression
     m, q, _, _, _ = linregress(x, y)
 
     # Plot
+    if color_line is None:
+        color_line = color
     x_plot = np.linspace(x.min(), x.max(), 100)
     ax.scatter(x, y, c=color, s=16, alpha=0.6)
-    ax.plot(x_plot, m * x_plot + q, c=color, lw=2, ls="--")
+    ax.plot(x_plot, m * x_plot + q, c=color_line, lw=2, ls="--")
+    # Add 95% prediction interval to regression line
+    t_fact = t.ppf(1 - alpha / 2, len(x) - 2)
+    MSE = np.sum((y - (m * x + q)) ** 2) / (len(x) - 2)
+    pi = t_fact * np.sqrt(
+        MSE * (1 + 1 / len(x) + (x_plot - x.mean()) ** 2 / np.sum((x - x.mean()) ** 2))
+    )
+    ax.fill_between(
+        x_plot, m * x_plot + q - pi, m * x_plot + q + pi, color="grey", alpha=0.1
+    )
 
     # Plot parameters
     ax.set_xlim(xlims)
     ax.set_ylim(ylims)
-    ax.tick_params(axis='both', which='both', labelsize=fsize.TICK_SIZE)
-    ax.set_xlabel("T1w/T2w (hierarchy)", fontsize=fsize.LABEL_SIZE)
-    ax.set_ylabel("Timescale [ms]", fontsize=fsize.LABEL_SIZE)
+    ax.tick_params(axis="both", which="both", labelsize=fsize.TICK_SIZE)
+    ax.set_xlabel(xlabel, fontsize=fsize.LABEL_SIZE)
+    ax.set_ylabel(ylabel, fontsize=fsize.LABEL_SIZE)
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
     if xlims is not None:
         _format_spines(ax, s_bounds={"bottom": xlims, "left": ylims})
@@ -528,70 +551,73 @@ def plot_struct_corr(
         fontsize=fsize.TEXT_SIZE,
     )
 
-    return ax
-
-
-@set_fonts
-def plot_sc_corr(
-    ax: plt.Axes,
-    df_tau: pd.DataFrame,
-    df_sc_params: pd.DataFrame,
-    color="k",
-    color_line=None,
-    title="",
-) -> plt.Axes:
-    """_summary_
-
-    Args:
-        ax (plt.Axes): _description_
-        df_tau (pd.DataFrame): _description_
-        df_sc_params (pd.DataFrame): _description_
-        color (str, optional): _description_. Defaults to "k".
-        title (str, optional): _description_. Defaults to "".
-
-    Returns:
-        plt.Axes: _description_
-    """
-
-    # Make sure the rows of the two dataframes coincide
-    y = df_sc_params.loc[df_tau.index].to_numpy().squeeze()
-    x = df_tau.to_numpy().squeeze()
-
-    # Get the slope and intercept of the linear regression
-    res = linregress(x, y)
-    print(f"Linregress results: r = {res[2]}, p = {res[3]}")
-    print(f"Spearman results: r = {spearmanr(x, y)[0]}, p = {spearmanr(x, y)[1]}")
-    intercept, slope = res[1], res[0]
-
-    # Plot the data and the linear regression
-    if color_line is None:
-        color_line = color
-    ax.scatter(x, y, c=color, alpha=0.5, s=36)
-    x_plot = np.linspace(x.min(), x.max(), 100)
-    ax.plot(
-        x_plot,
-        intercept + slope * x_plot,
-        c=color_line,
-        ls="--",
-        lw=3,
-    )
-
-    ax.set_ylabel("Spatial parameter", fontsize=fsize.LABEL_SIZE)
-    ax.set_xlabel("Timescale [a.u.]", fontsize=fsize.LABEL_SIZE)
-    ax.set_title(title)
-    _format_spines(ax)
-
-    # Add correlation values
-    x_text, y_text = ax.get_xlim()[1] * 0.7, ax.get_ylim()[1] * 0.95
-    ax.text(
-        x_text, y_text, f"rho={res[2]:.2f}\np={res[3]:.3f}", fontsize=fsize.TEXT_SIZE
-    )
+    _reset_default_rc()
 
     return ax
 
 
-@set_fonts
+# @set_fonts
+# def plot_sc_corr(
+#     ax: plt.Axes,
+#     df_tau: pd.DataFrame,
+#     df_sc_params: pd.DataFrame,
+#     color="k",
+#     color_line=None,
+#     title="",
+# ) -> plt.Axes:
+#     """_summary_
+
+#     Args:
+#         ax (plt.Axes): _description_
+#         df_tau (pd.DataFrame): _description_
+#         df_sc_params (pd.DataFrame): _description_
+#         color (str, optional): _description_. Defaults to "k".
+#         title (str, optional): _description_. Defaults to "".
+
+#     Returns:
+#     plt.Axes: _description_
+# """
+
+# # Make sure the rows of the two dataframes coincide
+# y = df_sc_params.loc[df_tau.index].to_numpy().squeeze()
+# x = df_tau.to_numpy().squeeze()
+
+# # Get the slope and intercept of the linear regression
+# res = linregress(x, y)
+# print(f"Linregress results: r = {res[2]}, p = {res[3]}")
+# print(f"Spearman results: r = {spearmanr(x, y)[0]}, p = {spearmanr(x, y)[1]}")
+# intercept, slope = res[1], res[0]
+
+# # Plot the data and the linear regression
+# if color_line is None:
+#     color_line = color
+# ax.scatter(x, y, c=color, alpha=0.5, s=36)
+# x_plot = np.linspace(x.min(), x.max(), 100)
+# ax.plot(
+#     x_plot,
+#     intercept + slope * x_plot,
+#     c=color_line,
+#     ls="--",
+#     lw=3,
+# )
+
+# ax.set_ylabel("Spatial parameter", fontsize=fsize.LABEL_SIZE)
+# ax.set_xlabel("Timescale [a.u.]", fontsize=fsize.LABEL_SIZE)
+# ax.set_title(title)
+# _format_spines(ax)
+
+# # Add correlation values
+# x_text, y_text = ax.get_xlim()[1] * 0.7, ax.get_ylim()[1] * 0.95
+# ax.text(
+#     x_text, y_text, f"rho={res[2]:.2f}\np={res[3]:.3f}", fontsize=fsize.TEXT_SIZE
+# )
+
+# return ax
+
+
 def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
+
+    _set_font_params()
 
     # Figure with absolute values
     fig, axs = plt.subplots(2, 1, figsize=(10, 10), layout="constrained")
@@ -653,11 +679,14 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
     axs[1].set_ylabel("Value", fontsize=fsize.LABEL_SIZE)
     axs[1].set_title(f"Relative timescales to Wake", fontsize=fsize.TITLE_SIZE)
 
+    _reset_default_rc()
+
     return fig, axs
 
 
-@set_fonts
 def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict):
+
+    _set_font_params()
 
     fig, axs = plt.subplots(1, 4, figsize=(24, 6))
 
@@ -701,5 +730,7 @@ def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict):
     axs[-1].set_ylabel("Correlation", fontsize=fsize.LABEL_SIZE)
     axs[-1].set_title("Max correlation - fit all stages", fontsize=fsize.TITLE_SIZE)
     _format_spines(axs[-1])
+
+    _reset_default_rc()
 
     return fig, axs
