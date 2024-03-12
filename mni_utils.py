@@ -353,7 +353,7 @@ def compute_SC(
 
         # Loop on the "seed" channel
         for i, ch1 in enumerate(raw.ch_names):
-            data_ch1 = epo[:, i]
+            data_ch1 = epo.get_data(picks=ch1).squeeze()
 
             # Get MNI coordinates
             mni1 = df_info_pat.loc[i, ["mni_x", "mni_y", "mni_z"]].to_numpy(dtype=float)
@@ -397,7 +397,7 @@ def compute_SC(
 
                 # Loop over epochs
                 corr_avg = []
-                data_ch2 = epo[:, j]
+                data_ch2 = epo.get_data(picks=ch2).squeeze()
                 for k in range(len(data_ch1)):
                     ch1_norm = (data_ch1[k] - data_ch1[k].mean()) / np.linalg.norm(
                         data_ch1[k]
