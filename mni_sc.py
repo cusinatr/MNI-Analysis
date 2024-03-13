@@ -17,7 +17,7 @@ base_path = Path("F:\\iEEG_neural_dynamics\\MNIOpen")
 mmp_name = "MMP_in_MNI_symmetrical_1.nii.gz"
 # mmp_macro_name = "mmp_macro.csv"
 out_dir = "Results_SC_gamma"
-dist_bins = np.arange(0, 101, 5)  # bins to use as distances
+dist_bins = np.arange(0, 101, 10)  # bins to use as distances
 freq_band = True
 band_freqs = [40, 80]
 recompute = False
@@ -133,6 +133,7 @@ for stage in ["W", "N3", "R"]:
     df_params.to_csv(res_path.joinpath(file_name + ".csv"))
 
     # Then, one fit per MNI region
+    # First on max CC value
     df_params = []
     for reg in df_sc_stages[stage]["region_1"].unique():
         df_sc_reg = df_sc_stages[stage][
@@ -152,22 +153,22 @@ for stage in ["W", "N3", "R"]:
     file_name += "_bins" if fit_bins else ""
     df_params.to_csv(res_path.joinpath(file_name + ".csv"))
 
-    # Then, one fit per MMP "macro" region
+    # Then, on "corrected" CC value
     df_params = []
-    for reg in df_sc_stages[stage]["mmp_1"].unique():
+    for reg in df_sc_stages[stage]["region_1"].unique():
         df_sc_reg = df_sc_stages[stage][
-            (df_sc_stages[stage]["mmp_1"] == reg)
-            | (df_sc_stages[stage]["mmp_2"] == reg)
+            (df_sc_stages[stage]["region_1"] == reg)
+            | (df_sc_stages[stage]["region_2"] == reg)
         ]
         if fit_bins:
             df_sc_bin_reg = uti.compute_sc_bin(df_sc_reg, bins=dist_bins)
-            popt, pcov = uti.fit_sc_bins(df_sc_bin_reg)
+            popt, pcov = uti.fit_sc_bins(df_sc_bin_reg, col_name="corrc_max")
         else:
-            popt, pcov = uti.fit_sc(df_sc_reg)
+            popt, pcov = uti.fit_sc(df_sc_reg, col_name="corrc_max")
         df_params.append(
             pd.DataFrame(popt.reshape(1, -1), columns=["k", "a", "b"], index=[reg])
         )
     df_params = pd.concat(df_params)
-    file_name = f"SC_{stage}_fit_mmp_regs"
+    file_name = f"SC_{stage}_fit_mni_regs_corrc"
     file_name += "_bins" if fit_bins else ""
     df_params.to_csv(res_path.joinpath(file_name + ".csv"))
