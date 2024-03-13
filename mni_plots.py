@@ -684,7 +684,8 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
     return fig, axs
 
 
-def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict):
+def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict,
+                data_name="corr_max"):
 
     _set_font_params()
 
@@ -694,7 +695,7 @@ def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict):
     for i, stage in enumerate(["W", "N3", "R"]):
         axs[i].plot(
             data_stages[stage]["dist"],
-            data_stages[stage]["corr_max"],
+            data_stages[stage][data_name],
             "o",
             c=colors_stage[stage],
             ms=9,
