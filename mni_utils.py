@@ -17,7 +17,7 @@ from sklearn.utils.validation import check_random_state
 ###
 
 
-def get_avg_tau_mni(data: pd.DataFrame, metric_name="tau") -> pd.Series:
+def get_avg_tau_mni(data: pd.DataFrame, metric_name="tau", method="LME") -> pd.Series:
     """Get average timescale per parcel of the MNI atlas.
     Uses a mixed model to account for different patients.
 
@@ -32,12 +32,16 @@ def get_avg_tau_mni(data: pd.DataFrame, metric_name="tau") -> pd.Series:
     data = data.dropna()
 
     # Mixed model
-    md = smf.mixedlm(metric_name + " ~ 0 + region", data, groups=data["pat"])
-    mdf = md.fit()
-
-    # Extract fitted parameters
-    data_mni = mdf.fe_params
-    data_mni.index = data_mni.index.str.strip("region[").str.strip("]")
+    if method == "LME":
+        md = smf.mixedlm(metric_name + " ~ 0 + region", data, groups=data["pat"])
+        mdf = md.fit()
+        # Extract fitted parameters
+        data_mni = mdf.fe_params
+        data_mni.index = data_mni.index.str.strip("region[").str.strip("]")
+    elif method == "median":
+        data_mni = data.groupby("region")[metric_name].median()
+    else:
+        data_mni = data.groupby("region")[metric_name].mean()
 
     return data_mni
 
@@ -500,10 +504,10 @@ def _exp_decay(x, k, a, b):
     return a * np.exp(-x / k) + b
 
 
-def fit_sc(df_sc: pd.DataFrame):
+def fit_sc(df_sc: pd.DataFrame, col_name="corr_max"):
 
     x = df_sc["dist"].to_numpy(dtype=float)
-    y = df_sc["corr_max"].to_numpy(dtype=float)
+    y = df_sc[col_name].to_numpy(dtype=float)
     if len(y) < 20:
         return np.array([np.nan, np.nan, np.nan]), np.nan
     try:
@@ -520,11 +524,11 @@ def fit_sc(df_sc: pd.DataFrame):
     return popt, pcov
 
 
-def fit_sc_bins(df_sc_bin: pd.DataFrame):
+def fit_sc_bins(df_sc_bin: pd.DataFrame, col_name="corr_max"):
 
     x = df_sc_bin["bin"].to_numpy(dtype=float)
-    y = df_sc_bin["corr_max"].to_numpy(dtype=float)
-    y_err = df_sc_bin["corr_max_sem"].to_numpy(dtype=float)
+    y = df_sc_bin[col_name].to_numpy(dtype=float)
+    y_err = df_sc_bin[col_name + "_sem"].to_numpy(dtype=float)
     if len(y) < 2:
         return np.array([np.nan, np.nan, np.nan]), np.nan
     try:
