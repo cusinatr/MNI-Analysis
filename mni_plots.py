@@ -63,17 +63,6 @@ def _format_spines(ax, s_inv=["top", "right"], s_bounds={}):
         ax.spines[s].set_bounds(b[0], b[1])
 
 
-# # Create decorator to automatically set font parameters
-# def set_fonts(func):
-#     def inner(*args, **kwargs):
-#         _set_font_params()
-#         res = func(*args, **kwargs)
-#         _reset_default_rc()
-#         return res
-
-#     return inner
-
-
 ###
 # Plots
 ###
@@ -273,6 +262,7 @@ def plot_parcellated_metric(
     title="",
     cmap="inferno",
     label="Timescales [ms]",
+    format_cbar="1f",
 ):
     """Plot parcellated metric on inflated brain.
 
@@ -351,7 +341,9 @@ def plot_parcellated_metric(
     fig, ax = plt.subplots(figsize=[8, 6], layout="constrained")
     img = ax.imshow(np.concatenate(brainviews, axis=1), cmap=cmap, norm=norm)
     cax = inset_axes(ax, width="50%", height="2%", loc=8, borderpad=3)
-    cbar = fig.colorbar(img, cax=cax, orientation="horizontal", format="%.1f")
+    cbar = fig.colorbar(
+        img, cax=cax, orientation="horizontal", format="%." + format_cbar
+    )
     cbar.set_label(label=label, size=fsize.LABEL_SIZE)
     cbar.mappable.set_clim(minv, maxv)
     cbar.ax.tick_params(labelsize=fsize.TICK_SIZE)
