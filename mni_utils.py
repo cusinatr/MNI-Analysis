@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 from scipy import optimize, spatial
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr, spearmanr, bootstrap
 import mne
 import nibabel as nib
 import statistics
@@ -848,6 +848,31 @@ def gen_spinsamples(
         return spinsamples, cost
 
     return spinsamples
+
+
+def get_rho_boot(x: np.ndarray, y: np.ndarray, corr_type="spearman", nboot=9999):
+
+    # Select function to use
+    if corr_type == "spearman":
+        corr_func = spearmanr
+    elif corr_type == "pearson":
+        corr_func = pearsonr
+
+    # Define function for bootstrapped statistic
+    def my_stat(s1, s2):
+        return corr_func(s1, s2)[0]
+
+    # Compute bootstraps
+    res = bootstrap(
+        (x, y),
+        my_stat,
+        n_resamples=nboot,
+        vectorized=False,
+        paired=True,
+        random_state=290496,
+    )
+
+    return res
 
 
 def get_pcorr(
