@@ -421,6 +421,7 @@ def half_violin_plot(
     ci: list,
     y_boot: np.ndarray,
     color: str,
+    pval=None,
     alpha=0.5,
 ):
     """Generate half violin plots with average and confidence intervals.
@@ -438,6 +439,8 @@ def half_violin_plot(
         plt.Axes: modified axes.
     """
 
+    _set_font_params()
+
     ax.scatter(x=x_pos, y=y_data, color="k", s=100, zorder=10)
     ax.plot([x_pos, x_pos], ci, color="k", lw=3)
     v = ax.violinplot(
@@ -453,6 +456,60 @@ def half_violin_plot(
         b.set_color(color)
         b.set_linewidth(0)
         b.set_alpha(alpha)
+
+    # Add pvalue if not None
+    if pval is not None:
+        ax.annotate(
+            pval,
+            xy=(x_pos, min(y_boot) * 0.95),
+            xycoords="data",
+            fontsize=fsize.TICK_SIZE,
+        )
+
+    _reset_default_rc()
+
+    return ax
+
+
+def slope_plot(ax: plt.Axes, df_plot: pd.DataFrame, ylabel=""):
+
+    _set_font_params()
+
+    # Extract labels
+    labs = df_plot.columns.to_list()
+    xticks = np.arange(len(labs))
+
+    # Plot lines
+    for _, row in df_plot.iterrows():
+        for j in range(len(labs) - 1):
+            ax.plot(
+                [xticks[j], xticks[j + 1]],
+                [row[labs[j]], row[labs[j + 1]]],
+                c="grey",
+                lw=0.5,
+                alpha=0.5,
+            )
+
+    # Add average values
+    avgs = [df_plot[col].mean() for col in labs]
+    ses = [df_plot[col].sem() for col in labs]
+    ax.errorbar(xticks, avgs, yerr=ses, fmt="ok", lw=2, capsize=4, capthick=2)
+    # Add connecting line
+    for j in range(len(labs) - 1):
+        ax.plot(
+            [xticks[j], xticks[j + 1]],
+            [avgs[j], avgs[j + 1]],
+            c="k",
+            lw=1.5,
+            alpha=0.8,
+        )
+
+    # Plot parameters
+    ax.set_xticks(xticks, labels=labs, fontsize=fsize.LABEL_SIZE)
+    ax.set_ylabel(ylabel, fontsize=fsize.LABEL_SIZE)
+    _format_spines(ax)
+
+    _reset_default_rc()
 
     return ax
 
