@@ -354,10 +354,12 @@ def plot_parcellated_metric(
     cbar = fig.colorbar(img, cax=cax, orientation="horizontal", format="%.1f")
     cbar.set_label(label=label, size=fsize.LABEL_SIZE)
     cbar.mappable.set_clim(minv, maxv)
-    sns.despine(fig, ax, bottom=True, left=True)
+    cbar.ax.tick_params(labelsize=fsize.TICK_SIZE)
+
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(title)
+    ax.set_title(title, fontsize=fsize.TITLE_SIZE)
+    _format_spines(ax, s_inv=["top", "right", "bottom", "left"])
 
     _reset_default_rc()
 
@@ -408,6 +410,49 @@ def bar_plot(
     _format_spines(ax)
 
     _reset_default_rc()
+
+    return ax
+
+
+def half_violin_plot(
+    ax: plt.Axes,
+    y_data: float,
+    x_pos: float,
+    ci: list,
+    y_boot: np.ndarray,
+    color: str,
+    alpha=0.5,
+):
+    """Generate half violin plots with average and confidence intervals.
+
+    Args:
+        ax (plt.Axes): matlotlib axes to draw on.
+        y_data (float): average value to plot as a point.
+        x_pos (float): x position where to center the plot.
+        ci (list): (lower, upper) conf. interval.
+        y_boot (np.ndarray): bootstraps of the y value.
+        color (str): color of the half violin. Defaults to str.
+        alpha (float, optional): Alpha level of the half violin. Defaults to 0.5.
+
+    Returns:
+        plt.Axes: modified axes.
+    """
+
+    ax.scatter(x=x_pos, y=y_data, color="k", s=100, zorder=10)
+    ax.plot([x_pos, x_pos], ci, color="k", lw=3)
+    v = ax.violinplot(
+        y_boot, positions=[x_pos], showmeans=False, showmedians=False, showextrema=False
+    )
+    for b in v["bodies"]:
+        # get the center
+        m = np.mean(b.get_paths()[0].vertices[:, 0])
+        # modify the paths to not go further left than the center
+        b.get_paths()[0].vertices[:, 0] = np.clip(
+            b.get_paths()[0].vertices[:, 0], m, np.inf
+        )
+        b.set_color(color)
+        b.set_linewidth(0)
+        b.set_alpha(alpha)
 
     return ax
 
@@ -684,8 +729,9 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
     return fig, axs
 
 
-def plot_sc_fit(data_stages: dict, params_stages: dict, colors_stage: dict,
-                data_name="corr_max"):
+def plot_sc_fit(
+    data_stages: dict, params_stages: dict, colors_stage: dict, data_name="corr_max"
+):
 
     _set_font_params()
 
