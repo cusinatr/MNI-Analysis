@@ -1,5 +1,6 @@
 from pathlib import Path
 import warnings
+from copy import deepcopy
 import pandas as pd
 import numpy as np
 from scipy import signal
@@ -56,6 +57,72 @@ def convert_knee_tau(el_data: pd.Series) -> float:
     knee_freq = knee ** (1 / exp)
 
     return 1000 / (2 * np.pi * knee_freq)  # 1000 to convert to ms
+
+
+def project_hemis_surf(surf, hemis="left"):
+    """Keep brain surfaces of one hemisphere."""
+
+    surf_hemis = deepcopy(surf)
+
+    if hemis == "right":
+        idx = np.where(surf.coordinates[:, 0] >= 0)[0]
+    elif hemis == "left":
+        idx = np.where(surf.coordinates[:, 0] <= 0)[0]
+    idx_faces = [i for i, f in enumerate(surf.faces) if set(f).issubset(idx)]
+    # We need to map the coordinates into new indexes values
+    faces_hemis = surf.faces[idx_faces]
+    mapper = {e: i for i, e in enumerate(idx)}
+
+    surf_hemis = surf_hemis._replace(
+        coordinates=surf.coordinates[idx], faces=np.vectorize(mapper.get)(faces_hemis)
+    )
+
+    return surf_hemis
+
+
+def get_hip_amy_vtx(HO_atlas, surface_hip_amy, k=101):
+    """Get vertices of Hippocampus and Amygdala on the surface.
+
+    Args:
+        HO_atlas (): Harvard-oxford atlas as returned from nilearn.
+        surface_hip_amy (nilearn.surface.surface.mesh): Hippocampus/Amygdala mesh.
+        k (int, optional): Number of nearest neighbours. Defaults to 101.
+
+    Returns:
+        np.ndarray: index of structure for each vertex.
+    """
+
+    # Get volume map of labels
+    HO_map = HO_atlas["maps"].get_fdata()
+
+    # Get labels for hippocampus and amygdala
+    labels_hip_amy = [
+        i
+        for i, lab in enumerate(HO_atlas["labels"])
+        if ("Left Hip" in lab) or ("Left Amy" in lab)
+    ]
+    idx_hip_amy = np.array(np.where(np.isin(HO_map, labels_hip_amy))).T
+    idx_hip_amy_flat = HO_map[np.where(np.isin(HO_map, labels_hip_amy))].astype(
+        np.int64
+    )
+
+    # Compute vertexes belonging to hippocampus and amygdala
+    surface_nodes_labels = []
+    for node in surface_hip_amy[0]:
+        node_index = apply_affine(
+            HO_atlas["maps"].affine, node, forward=False
+        )
+        dists = np.linalg.norm(idx_hip_amy - node_index, axis=1)
+        # Mode of closes k nodes
+        idx_closest_k = np.argsort(dists)[:k]
+        label_closes_k = idx_hip_amy_flat[idx_closest_k]
+        if labels_hip_amy[1] in label_closes_k:
+            surface_nodes_labels.append(1)
+        else:
+            surface_nodes_labels.append(0)
+    surface_nodes_labels = np.array(surface_nodes_labels)
+
+    return surface_nodes_labels
 
 
 ###

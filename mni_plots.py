@@ -1,10 +1,13 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import math
 import pandas as pd
 import numpy as np
 from mne.viz import get_brain_class
-from scipy.stats import linregress, spearmanr, pearsonr, t
+from scipy.stats import linregress, t
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 import seaborn as sns
+import plotly.graph_objects as go
 from matplotlib import rcParams, rcParamsDefault, colors
 import matplotlib.patches as mpatches
 import mni_utils as uti
@@ -61,6 +64,46 @@ def _format_spines(ax, s_inv=["top", "right"], s_bounds={}):
     # Put bounds on spines
     for s, b in s_bounds.items():
         ax.spines[s].set_bounds(b[0], b[1])
+
+
+def _get_camera_view_from_elevation_and_azimuth(elev, azim, r=1.5):
+    """Compute plotly camera parameters from elevation and azimut."""
+    # The radius is useful only when using a "perspective" projection,
+    # otherwise, if projection is "orthographic",
+    # one should tweak the "aspectratio" to emulate zoom
+    # The camera position and orientation is set by three 3d vectors,
+    # whose coordinates are independent of the plotted data.
+    return {
+        # Where the camera should look at
+        # (it should always be looking at the center of the scene)
+        "center": {"x": 0, "y": 0, "z": 0},
+        # Where the camera should be located
+        "eye": {
+            "x": (
+                r
+                * math.cos(azim / 360 * 2 * math.pi)
+                * math.cos(elev / 360 * 2 * math.pi)
+            ),
+            "y": (
+                r
+                * math.sin(azim / 360 * 2 * math.pi)
+                * math.cos(elev / 360 * 2 * math.pi)
+            ),
+            "z": r * math.sin(elev / 360 * 2 * math.pi),
+        },
+        # How the camera should be rotated.
+        # It is determined by a 3d vector indicating which direction
+        # should look up in the generated plot
+        "up": {
+            "x": math.sin(elev / 360 * 2 * math.pi)
+            * math.cos(azim / 360 * 2 * math.pi + math.pi),
+            "y": math.sin(elev / 360 * 2 * math.pi)
+            * math.sin(azim / 360 * 2 * math.pi + math.pi),
+            "z": math.cos(elev / 360 * 2 * math.pi),
+        },
+        # "projection": {"type": "perspective"},
+        "projection": {"type": "orthographic"},
+    }
 
 
 ###
@@ -262,7 +305,8 @@ def plot_parcellated_metric(
     title="",
     cmap="inferno",
     label="Timescales [ms]",
-    format_cbar="1f",
+    cbar_format="1f",
+    cbar_ticks=None,
 ):
     """Plot parcellated metric on inflated brain.
 
@@ -342,8 +386,10 @@ def plot_parcellated_metric(
     img = ax.imshow(np.concatenate(brainviews, axis=1), cmap=cmap, norm=norm)
     cax = inset_axes(ax, width="50%", height="2%", loc=8, borderpad=3)
     cbar = fig.colorbar(
-        img, cax=cax, orientation="horizontal", format="%." + format_cbar
+        img, cax=cax, orientation="horizontal", format="%." + cbar_format
     )
+    if cbar_ticks is not None:
+        cbar.set_ticks(cbar_ticks)
     cbar.set_label(label=label, size=fsize.LABEL_SIZE)
     cbar.mappable.set_clim(minv, maxv)
     cbar.ax.tick_params(labelsize=fsize.TICK_SIZE)
@@ -356,6 +402,89 @@ def plot_parcellated_metric(
     _reset_default_rc()
 
     return fig, ax
+
+
+def plot_hip_amy(
+    surface_hip_amy,
+    val_hip: float,
+    val_amy: float,
+    surface_nodes_labels: np.ndarray,
+    lims_plot: list,
+    cmap="inferno",
+):
+    """Plot a surface of Hippocampus and Amygdala colored according to a metric.
+
+    Args:
+        surface_hip_amy (nilearn.surface.surface.mesh): mesh of surface.
+        val_hip (float): value to plot on hippocampus.
+        val_amy (float): value to plot on amygdala.
+        surface_nodes_labels (np.ndarray): label (0/1) of each vertex.
+        lims_plot (list): limits of the plot.
+        cmap (str, optional): colormap to use. Defaults to "inferno".
+
+    Returns:
+        plotly Figure
+    """
+
+    cmap = mpl.colormaps[cmap]
+    norm = mpl.colors.Normalize(vmin=lims_plot[0], vmax=lims_plot[1])
+    color_amy = cmap(norm(val_amy))
+    color_hip = cmap(norm(val_hip))
+    colors_plot = np.array([color_hip] * len(surface_hip_amy[0]))
+    colors_plot[surface_nodes_labels == 1] = color_amy
+
+    # First, create surface plot
+    surf_trace = go.Mesh3d(
+        x=surface_hip_amy.coordinates[:, 0],
+        y=surface_hip_amy.coordinates[:, 1],
+        z=surface_hip_amy.coordinates[:, 2],
+        i=surface_hip_amy.faces[:, 0],
+        j=surface_hip_amy.faces[:, 1],
+        k=surface_hip_amy.faces[:, 2],
+        color="white",
+        vertexcolor=colors_plot,
+        hoverinfo="skip",
+    )
+
+    fig = go.Figure(
+        data=[surf_trace],
+    )
+
+    fig.update_layout(
+        {
+            "paper_bgcolor": "rgba(0,0,0,0)",  # transparent, to make it dark set a=0.8
+        },
+        scene=dict(
+            xaxis=dict(
+                backgroundcolor="rgba(0,0,0,0)",
+                gridcolor="rgba(0,0,0,0.0)",
+                color="white",
+                zeroline=False,
+                showticklabels=False,
+                title_text="",
+            ),
+            yaxis=dict(
+                backgroundcolor="rgba(0,0,0,0)",
+                gridcolor="rgba(0,0,0,0.0)",
+                color="white",
+                zeroline=False,
+                showticklabels=False,
+                title_text="",
+            ),
+            zaxis=dict(
+                backgroundcolor="rgba(0,0,0,0)",
+                gridcolor="rgba(0,0,0,0.0)",
+                color="white",
+                zeroline=False,
+                showticklabels=False,
+                title_text="",
+            ),
+        ),
+        margin=dict(l=0, r=0, b=0, t=0),
+        scene_camera=_get_camera_view_from_elevation_and_azimuth(30, 100, r=10),
+    )
+
+    return fig
 
 
 def bar_plot(
@@ -648,65 +777,6 @@ def plot_corr(
     _reset_default_rc()
 
     return ax
-
-
-# @set_fonts
-# def plot_sc_corr(
-#     ax: plt.Axes,
-#     df_tau: pd.DataFrame,
-#     df_sc_params: pd.DataFrame,
-#     color="k",
-#     color_line=None,
-#     title="",
-# ) -> plt.Axes:
-#     """_summary_
-
-#     Args:
-#         ax (plt.Axes): _description_
-#         df_tau (pd.DataFrame): _description_
-#         df_sc_params (pd.DataFrame): _description_
-#         color (str, optional): _description_. Defaults to "k".
-#         title (str, optional): _description_. Defaults to "".
-
-#     Returns:
-#     plt.Axes: _description_
-# """
-
-# # Make sure the rows of the two dataframes coincide
-# y = df_sc_params.loc[df_tau.index].to_numpy().squeeze()
-# x = df_tau.to_numpy().squeeze()
-
-# # Get the slope and intercept of the linear regression
-# res = linregress(x, y)
-# print(f"Linregress results: r = {res[2]}, p = {res[3]}")
-# print(f"Spearman results: r = {spearmanr(x, y)[0]}, p = {spearmanr(x, y)[1]}")
-# intercept, slope = res[1], res[0]
-
-# # Plot the data and the linear regression
-# if color_line is None:
-#     color_line = color
-# ax.scatter(x, y, c=color, alpha=0.5, s=36)
-# x_plot = np.linspace(x.min(), x.max(), 100)
-# ax.plot(
-#     x_plot,
-#     intercept + slope * x_plot,
-#     c=color_line,
-#     ls="--",
-#     lw=3,
-# )
-
-# ax.set_ylabel("Spatial parameter", fontsize=fsize.LABEL_SIZE)
-# ax.set_xlabel("Timescale [a.u.]", fontsize=fsize.LABEL_SIZE)
-# ax.set_title(title)
-# _format_spines(ax)
-
-# # Add correlation values
-# x_text, y_text = ax.get_xlim()[1] * 0.7, ax.get_ylim()[1] * 0.95
-# ax.text(
-#     x_text, y_text, f"rho={res[2]:.2f}\np={res[3]:.3f}", fontsize=fsize.TEXT_SIZE
-# )
-
-# return ax
 
 
 def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
