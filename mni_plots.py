@@ -747,7 +747,7 @@ def plot_corr(
         MSE * (1 + 1 / len(x) + (x_plot - x.mean()) ** 2 / np.sum((x - x.mean()) ** 2))
     )
     ax.fill_between(
-        x_plot, m * x_plot + q - pi, m * x_plot + q + pi, color="grey", alpha=0.1
+        x_plot, m * x_plot + q - pi, m * x_plot + q + pi, color="grey", alpha=0.06
     )
 
     # Plot parameters
