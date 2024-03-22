@@ -585,6 +585,7 @@ def half_violin_plot(
             xy=(x_pos, min(y_boot) * 0.95),
             xycoords="data",
             fontsize=fsize.TICK_SIZE,
+            ha="center"
         )
 
     _reset_default_rc()
@@ -854,7 +855,7 @@ def plot_sc_fit(
 
     _set_font_params()
 
-    fig, axs = plt.subplots(1, 4, figsize=(24, 6))
+    fig, axs = plt.subplots(1, 4, figsize=(20, 5))
 
     # One subplot with data from all stages
     for i, stage in enumerate(["W", "N3", "R"]):
@@ -863,8 +864,8 @@ def plot_sc_fit(
             data_stages[stage][data_name],
             "o",
             c=colors_stage[stage],
-            ms=9,
-            alpha=0.2,
+            ms=2,
+            alpha=0.1,
         )
         axs[i].plot(
             data_stages[stage]["dist"].sort_values(),
@@ -876,8 +877,8 @@ def plot_sc_fit(
             lw=2,
             zorder=9,
         )
-        axs[i].set_xlabel("Distance", fontsize=fsize.LABEL_SIZE)
-        axs[i].set_ylabel("Correlation", fontsize=fsize.LABEL_SIZE)
+        axs[i].set_xlabel("Distance [mm]", fontsize=fsize.LABEL_SIZE)
+        axs[i].set_ylabel("Cross-correlation [a.u.]", fontsize=fsize.LABEL_SIZE)
         axs[i].set_title(f"Spatial correlation - {stage}", fontsize=fsize.TITLE_SIZE)
         _format_spines(axs[i])
 
@@ -892,9 +893,9 @@ def plot_sc_fit(
             c=colors_stage[stage],
             lw=2,
         )
-    axs[-1].set_xlabel("Distance", fontsize=fsize.LABEL_SIZE)
-    axs[-1].set_ylabel("Correlation", fontsize=fsize.LABEL_SIZE)
-    axs[-1].set_title("Max correlation - fit all stages", fontsize=fsize.TITLE_SIZE)
+    axs[-1].set_xlabel("Distance [mm]", fontsize=fsize.LABEL_SIZE)
+    axs[-1].set_ylabel("Cross-correlation [a.u.]", fontsize=fsize.LABEL_SIZE)
+    axs[-1].set_title("Fit results", fontsize=fsize.TITLE_SIZE)
     _format_spines(axs[-1])
 
     _reset_default_rc()
