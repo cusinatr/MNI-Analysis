@@ -582,10 +582,12 @@ def compute_sc_bin(df_sc: pd.DataFrame, bins: np.ndarray) -> pd.DataFrame:
     df_sc_bin_sem["corr_max_sem"] = df_sc["corr_max"]
 
     # Reset bins index and compute sem
-    df_sc_bin_avg = df_sc_bin_avg.groupby("dist", observed=False).mean()
+    df_sc_bin_avg = df_sc_bin_avg.groupby(
+        "dist", observed=False
+    ).mean(numeric_only=True)
     df_sc_bin_avg["bin"] = bins_values[:-1] + np.diff(bins_values) / 2
     df_sc_bin_avg.reset_index(inplace=True, drop=True)
-    df_sc_bin_sem = df_sc_bin_sem.groupby("dist", observed=False).sem()
+    df_sc_bin_sem = df_sc_bin_sem.groupby("dist", observed=False).sem(numeric_only=True)
     df_sc_bin_sem.reset_index(inplace=True, drop=True)
     df_sc_bin = pd.concat([df_sc_bin_avg, df_sc_bin_sem], axis=1)
     df_sc_bin.dropna(inplace=True)
