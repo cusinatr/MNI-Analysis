@@ -562,11 +562,15 @@ def half_violin_plot(
 
     _set_font_params()
 
+    # Plot point estimate
     ax.scatter(x=x_pos, y=y_data, color="k", s=100, zorder=10)
+    # Plot confidence interval bar
     ax.plot([x_pos, x_pos], ci, color="k", lw=3)
+    # Plot violin
     v = ax.violinplot(
         y_boot, positions=[x_pos], showmeans=False, showmedians=False, showextrema=False
     )
+    # Restrict to right half
     for b in v["bodies"]:
         # get the center
         m = np.mean(b.get_paths()[0].vertices[:, 0])
@@ -577,6 +581,8 @@ def half_violin_plot(
         b.set_color(color)
         b.set_linewidth(0)
         b.set_alpha(alpha)
+    # Add horizontal line at 0
+    ax.axhline(0, color="k", ls="--", lw=0.5, dashes=(5, 10))
 
     # Add pvalue if not None
     if pval is not None:
