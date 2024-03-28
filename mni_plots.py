@@ -35,11 +35,11 @@ class color:
 class fsize:
     """Store plots objects' fontsizes"""
 
-    TEXT_SIZE = 12
-    MEANS_SIZE = 12
-    TITLE_SIZE = 15
-    TICK_SIZE = 10
-    LABEL_SIZE = 12
+    TEXT_SIZE = 15
+    MEANS_SIZE = 15
+    TITLE_SIZE = 20
+    TICK_SIZE = 15
+    LABEL_SIZE = 15
 
 
 def _set_font_params():
@@ -382,7 +382,7 @@ def plot_parcellated_metric(
     brainviews.append(brain.screenshot())
     brain.close()
 
-    fig, ax = plt.subplots(figsize=[8, 6], layout="constrained")
+    fig, ax = plt.subplots(figsize=[6, 5], layout="constrained")
     img = ax.imshow(np.concatenate(brainviews, axis=1), cmap=cmap, norm=norm)
     cax = inset_axes(ax, width="50%", height="2%", loc=8, borderpad=3)
     cbar = fig.colorbar(
@@ -582,7 +582,7 @@ def half_violin_plot(
         b.set_linewidth(0)
         b.set_alpha(alpha)
     # Add horizontal line at 0
-    ax.axhline(0, color="k", ls="--", lw=0.5, dashes=(5, 10))
+    ax.axhline(0, color="k", ls="--", lw=1, dashes=(6, 8))
 
     # Add pvalue if not None
     if pval is not None:
@@ -590,7 +590,7 @@ def half_violin_plot(
             pval,
             xy=(x_pos, min(y_boot) * 0.95),
             xycoords="data",
-            fontsize=fsize.TICK_SIZE,
+            fontsize=fsize.TEXT_SIZE,
             ha="center"
         )
 
@@ -754,7 +754,7 @@ def plot_corr(
         MSE * (1 + 1 / len(x) + (x_plot - x.mean()) ** 2 / np.sum((x - x.mean()) ** 2))
     )
     ax.fill_between(
-        x_plot, m * x_plot + q - pi, m * x_plot + q + pi, color="grey", alpha=0.06
+        x_plot, m * x_plot + q - pi, m * x_plot + q + pi, color="grey", alpha=0.05
     )
 
     # Plot parameters
@@ -856,7 +856,8 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
 
 
 def plot_sc_fit(
-    data_stages: dict, params_stages: dict, colors_stage: dict, data_name="corr_max"
+    data_stages: dict, params_stages: dict, colors_stage: dict, data_name="corr_max",
+    dict_stages=None
 ):
 
     _set_font_params()
@@ -883,13 +884,22 @@ def plot_sc_fit(
             lw=2,
             zorder=9,
         )
+        axs[i].tick_params(axis="both", which="both", labelsize=fsize.TICK_SIZE)
         axs[i].set_xlabel("Distance [mm]", fontsize=fsize.LABEL_SIZE)
-        axs[i].set_ylabel("Cross-correlation [a.u.]", fontsize=fsize.LABEL_SIZE)
-        axs[i].set_title(f"Spatial correlation - {stage}", fontsize=fsize.TITLE_SIZE)
+        axs[i].set_ylabel("Cross-correlation", fontsize=fsize.LABEL_SIZE)
+        if dict_stages is not None:
+            stage_title = dict_stages[stage]
+        else:
+            stage_title = stage
+        axs[i].set_title(f"{stage_title}", fontsize=fsize.TITLE_SIZE)
         _format_spines(axs[i])
 
     # Last subplot with comparison between fits
     for stage in ["W", "N3", "R"]:
+        if dict_stages is not None:
+            stage_title = dict_stages[stage]
+        else:
+            stage_title = stage
         axs[-1].plot(
             data_stages[stage]["dist"].sort_values(),
             uti._exp_decay(
@@ -897,10 +907,15 @@ def plot_sc_fit(
             ),
             "-",
             c=colors_stage[stage],
+            label=stage_title,
             lw=2,
         )
+
+    # Plot params
+    axs[-1].legend(frameon=False, fontsize=fsize.TEXT_SIZE)
+    axs[-1].tick_params(axis="both", which="both", labelsize=fsize.TICK_SIZE)
     axs[-1].set_xlabel("Distance [mm]", fontsize=fsize.LABEL_SIZE)
-    axs[-1].set_ylabel("Cross-correlation [a.u.]", fontsize=fsize.LABEL_SIZE)
+    axs[-1].set_ylabel("Cross-correlation", fontsize=fsize.LABEL_SIZE)
     axs[-1].set_title("Fit results", fontsize=fsize.TITLE_SIZE)
     _format_spines(axs[-1])
 
