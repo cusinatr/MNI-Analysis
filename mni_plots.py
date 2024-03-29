@@ -35,11 +35,11 @@ class color:
 class fsize:
     """Store plots objects' fontsizes"""
 
-    TEXT_SIZE = 15
-    MEANS_SIZE = 15
-    TITLE_SIZE = 20
-    TICK_SIZE = 15
-    LABEL_SIZE = 15
+    TEXT_SIZE = 10
+    MEANS_SIZE = 10
+    TITLE_SIZE = 12
+    TICK_SIZE = 10
+    LABEL_SIZE = 12
 
 
 def _set_font_params():
@@ -54,6 +54,13 @@ def _reset_default_rc():
     rcParams.update(rcParamsDefault)
 
 
+def _get_figsize_inches(figsizes: tuple):
+
+    # Conversion inches <-> cm
+    cm = 1 / 2.54
+    return [f * cm for f in figsizes]
+
+
 def _format_spines(ax, s_inv=["top", "right"], s_bounds={}):
     """Format axis spines"""
 
@@ -64,6 +71,33 @@ def _format_spines(ax, s_inv=["top", "right"], s_bounds={}):
     # Put bounds on spines
     for s, b in s_bounds.items():
         ax.spines[s].set_bounds(b[0], b[1])
+
+
+def save_figure(fig, fig_path, format="svg"):
+    """Save figure to file.
+
+    Args:
+        fig (plt.figure): figure to save.
+        fig_path (str): path to save figure.
+        format (str, optional): format to save figure. Defaults to "svg".
+    """
+
+    fig.savefig(fig_path, format=format, dpi=600, bbox_inches="tight")
+
+
+def _get_fontsize_ratio(figsize: tuple, A_ref=72.25):
+    """Compute the font size for a given figure size.
+
+    Args:
+        figsize (tuple): figure size in inches.
+        A_ref (float, optional): reference area. Defaults to 72.25 (i.e. 8.5x8.5).
+
+    Returns:
+        float: ratio of font size to use.
+    """
+
+    A = figsize[0] * figsize[1]
+    return np.sqrt(A / A_ref)
 
 
 def _get_camera_view_from_elevation_and_azimuth(elev, azim, r=1.5):
@@ -299,6 +333,7 @@ def plot_parcellated_metric(
     parc_metric: np.ndarray,
     parc_labels: np.ndarray,
     subjects_dir: str,
+    labels_mne: list,
     log_scale=False,
     minmax=(None, None),
     zero_center=False,
@@ -307,6 +342,7 @@ def plot_parcellated_metric(
     label="Timescales [ms]",
     cbar_format="1f",
     cbar_ticks=None,
+    figsize=(15, 13),
 ):
     """Plot parcellated metric on inflated brain.
 
@@ -362,6 +398,7 @@ def plot_parcellated_metric(
             fmin=np.log10(minmax[0]),
             fmax=np.log10(minmax[1]),
             fmid=np.log10(mid),
+            thresh=0,
             colormap=cmap,
             colorbar=False,
         )
@@ -374,6 +411,9 @@ def plot_parcellated_metric(
             colormap=cmap,
             colorbar=False,
         )
+    # Add medial wall in grey
+    lab_plot = [label for label in labels_mne if "Unknown" in label.name[:-3]][0]
+    brain.add_label(lab_plot, borders=False, color="grey")
 
     brainviews = []
     brain.show_view("lat")
@@ -382,7 +422,9 @@ def plot_parcellated_metric(
     brainviews.append(brain.screenshot())
     brain.close()
 
-    fig, ax = plt.subplots(figsize=[6, 5], layout="constrained")
+    fig, ax = plt.subplots(figsize=_get_figsize_inches(figsize), layout="constrained")
+    # Get fontsize for the figure
+    fontsize_fig = _get_correct_font_size(figsize)
     img = ax.imshow(np.concatenate(brainviews, axis=1), cmap=cmap, norm=norm)
     cax = inset_axes(ax, width="50%", height="2%", loc=8, borderpad=3)
     cbar = fig.colorbar(
@@ -390,13 +432,13 @@ def plot_parcellated_metric(
     )
     if cbar_ticks is not None:
         cbar.set_ticks(cbar_ticks)
-    cbar.set_label(label=label, size=fsize.LABEL_SIZE)
+    cbar.set_label(label=label, size=fontsize_fig)
     cbar.mappable.set_clim(minv, maxv)
-    cbar.ax.tick_params(labelsize=fsize.TICK_SIZE)
+    cbar.ax.tick_params(labelsize=fontsize_fig)
 
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(title, fontsize=fsize.TITLE_SIZE)
+    ax.set_title(title, fontsize=fontsize_fig)
     _format_spines(ax, s_inv=["top", "right", "bottom", "left"])
 
     _reset_default_rc()
@@ -563,9 +605,9 @@ def half_violin_plot(
     _set_font_params()
 
     # Plot point estimate
-    ax.scatter(x=x_pos, y=y_data, color="k", s=100, zorder=10)
+    ax.scatter(x=x_pos, y=y_data, color="k", s=81, zorder=10)
     # Plot confidence interval bar
-    ax.plot([x_pos, x_pos], ci, color="k", lw=3)
+    ax.plot([x_pos, x_pos], ci, color="k", lw=2)
     # Plot violin
     v = ax.violinplot(
         y_boot, positions=[x_pos], showmeans=False, showmedians=False, showextrema=False
@@ -591,7 +633,7 @@ def half_violin_plot(
             xy=(x_pos, min(y_boot) * 0.95),
             xycoords="data",
             fontsize=fsize.TEXT_SIZE,
-            ha="center"
+            ha="center",
         )
 
     _reset_default_rc()
@@ -633,8 +675,7 @@ def slope_plot(ax: plt.Axes, df_plot: pd.DataFrame, ylabel=""):
         )
 
     # Plot parameters
-    ax.set_xticks(xticks, labels=labs, fontsize=fsize.LABEL_SIZE)
-    ax.set_ylabel(ylabel, fontsize=fsize.LABEL_SIZE)
+    ax.set_xticks(xticks, labels=labs)
     _format_spines(ax)
 
     _reset_default_rc()
@@ -714,6 +755,7 @@ def plot_corr(
     alpha=0.05,
     color="k",
     color_line=None,
+    figsize=(6, 6),
     title="",
     xlabel="",
     ylabel="",
@@ -758,14 +800,15 @@ def plot_corr(
     )
 
     # Plot parameters
+    fontsize_fig = _get_fontsize_ratio(figsize)
     ax.set_xlim(xlims)
     ax.set_ylim(ylims)
-    ax.tick_params(axis="both", which="both", labelsize=fsize.TICK_SIZE)
-    ax.set_xlabel(xlabel, fontsize=fsize.LABEL_SIZE)
-    ax.set_ylabel(ylabel, fontsize=fsize.LABEL_SIZE)
-    ax.set_title(title, fontsize=fsize.TITLE_SIZE)
+    ax.tick_params(axis="both", which="both", labelsize=fontsize_fig * fsize.TICK_SIZE)
+    ax.set_xlabel(xlabel, fontsize=fontsize_fig * fsize.LABEL_SIZE)
+    ax.set_ylabel(ylabel, fontsize=fontsize_fig * fsize.LABEL_SIZE)
+    ax.set_title(title, fontsize=fontsize_fig * fsize.TITLE_SIZE)
     if xlims is not None:
-        _format_spines(ax, s_bounds={"bottom": xlims, "left": ylims})
+        _format_spines(ax, s_bounds={"bottom": xlims})#, "left": ylims})
     else:
         _format_spines(ax)
 
@@ -778,7 +821,7 @@ def plot_corr(
         r"$\rho$" + " = " + str(round(rho, 2)) + "\n" + p_str,
         xy=xy_annot,
         xycoords="axes fraction",
-        fontsize=fsize.TEXT_SIZE,
+        fontsize=fontsize_fig * fsize.TEXT_SIZE,
     )
 
     _reset_default_rc()
@@ -856,51 +899,35 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
 
 
 def plot_sc_fit(
-    data_stages: dict, params_stages: dict, colors_stage: dict, data_name="corr_max",
-    dict_stages=None
+    data_stages: dict,
+    params_stages: dict,
+    colors_stage: dict,
+    data_name="corr_max",
+    dict_stages=None,
+    figsize=(8, 8),
 ):
 
     _set_font_params()
 
-    fig, axs = plt.subplots(1, 4, figsize=(20, 5))
+    gs_kw = dict(width_ratios=[3, 1])
+    fig, axd = plt.subplot_mosaic(
+        [["left", "upper right"], ["left", "center right"], ["left", "lower right"]],
+        gridspec_kw=gs_kw,
+        figsize=_get_figsize_inches(figsize),
+        # layout="constrained",
+        dpi=600,
+    )
+    axs = [axd["left"], axd["upper right"], axd["center right"], axd["lower right"]]
+    # Compute the fontsize for the figure size
+    fontsize_fig = _get_fontsize_ratio(figsize)
 
-    # One subplot with data from all stages
-    for i, stage in enumerate(["W", "N3", "R"]):
-        axs[i].plot(
-            data_stages[stage]["dist"],
-            data_stages[stage][data_name],
-            "o",
-            c=colors_stage[stage],
-            ms=2,
-            alpha=0.1,
-        )
-        axs[i].plot(
-            data_stages[stage]["dist"].sort_values(),
-            uti._exp_decay(
-                data_stages[stage]["dist"].sort_values(), *params_stages[stage]
-            ),
-            "-",
-            c="k",
-            lw=2,
-            zorder=9,
-        )
-        axs[i].tick_params(axis="both", which="both", labelsize=fsize.TICK_SIZE)
-        axs[i].set_xlabel("Distance [mm]", fontsize=fsize.LABEL_SIZE)
-        axs[i].set_ylabel("Cross-correlation", fontsize=fsize.LABEL_SIZE)
+    # First, plot with comparison between fits
+    for stage in data_stages.keys():
         if dict_stages is not None:
             stage_title = dict_stages[stage]
         else:
             stage_title = stage
-        axs[i].set_title(f"{stage_title}", fontsize=fsize.TITLE_SIZE)
-        _format_spines(axs[i])
-
-    # Last subplot with comparison between fits
-    for stage in ["W", "N3", "R"]:
-        if dict_stages is not None:
-            stage_title = dict_stages[stage]
-        else:
-            stage_title = stage
-        axs[-1].plot(
+        axs[0].plot(
             data_stages[stage]["dist"].sort_values(),
             uti._exp_decay(
                 data_stages[stage]["dist"].sort_values(), *params_stages[stage]
@@ -912,12 +939,39 @@ def plot_sc_fit(
         )
 
     # Plot params
-    axs[-1].legend(frameon=False, fontsize=fsize.TEXT_SIZE)
-    axs[-1].tick_params(axis="both", which="both", labelsize=fsize.TICK_SIZE)
-    axs[-1].set_xlabel("Distance [mm]", fontsize=fsize.LABEL_SIZE)
-    axs[-1].set_ylabel("Cross-correlation", fontsize=fsize.LABEL_SIZE)
-    axs[-1].set_title("Fit results", fontsize=fsize.TITLE_SIZE)
-    _format_spines(axs[-1])
+    axs[0].legend(frameon=False, fontsize=fontsize_fig * fsize.TEXT_SIZE)
+    axs[0].tick_params(
+        axis="both", which="both", labelsize=fontsize_fig * fsize.TICK_SIZE
+    )
+    axs[0].set_xlabel("Distance [mm]", fontsize=fontsize_fig * fsize.LABEL_SIZE)
+    axs[0].set_ylabel("Cross-correlation", fontsize=fontsize_fig * fsize.LABEL_SIZE)
+    axs[0].set_title("Exponential fit", fontsize=fontsize_fig * fsize.TITLE_SIZE)
+    _format_spines(axs[0])
+
+    # Then, one subplot with data from all stages
+    for i, stage in enumerate(data_stages.keys()):
+        axs[i + 1].plot(
+            data_stages[stage]["dist"],
+            data_stages[stage][data_name],
+            "o",
+            c=colors_stage[stage],
+            ms=0.5,
+            alpha=0.1,
+        )
+        axs[i + 1].plot(
+            data_stages[stage]["dist"].sort_values(),
+            uti._exp_decay(
+                data_stages[stage]["dist"].sort_values(), *params_stages[stage]
+            ),
+            "-",
+            c="k",
+            lw=2,
+            zorder=9,
+        )
+        # Remove ticks for these subplots
+        axs[i + 1].set_xticks([])
+        axs[i + 1].set_yticks([])
+        _format_spines(axs[i + 1])
 
     _reset_default_rc()
 
