@@ -144,6 +144,7 @@ def _get_camera_view_from_elevation_and_azimuth(elev, azim, r=1.5):
 # Plots
 ###
 
+_set_font_params()
 
 def plot_conds_regs(
     ax: plt.axes,
@@ -194,8 +195,6 @@ def plot_conds_regs(
     Returns:
         plt.axes: modified axes.
     """
-
-    _set_font_params()
 
     # Define regions and conditions
     Regions = df_plot["region"].unique()
@@ -324,8 +323,6 @@ def plot_conds_regs(
             leg_names.append(cond)
     ax.legend(leg, leg_names, frameon=False, fontsize=fsize.TEXT_SIZE)
 
-    _reset_default_rc()
-
     return ax
 
 
@@ -342,7 +339,7 @@ def plot_parcellated_metric(
     label="Timescales [ms]",
     cbar_format="1f",
     cbar_ticks=None,
-    figsize=(15, 13),
+    figsize=(20, 15),
 ):
     """Plot parcellated metric on inflated brain.
 
@@ -360,8 +357,6 @@ def plot_parcellated_metric(
     Returns:
         _type_: _description_
     """
-
-    _set_font_params()
 
     Brain = get_brain_class()
     brain = Brain(
@@ -412,7 +407,7 @@ def plot_parcellated_metric(
             colorbar=False,
         )
     # Add medial wall in grey
-    lab_plot = [label for label in labels_mne if "Unknown" in label.name[:-3]][0]
+    lab_plot = [label for label in labels_mne if (("Unknown" in label.name[:-3]) or ("???" in label.name[:-3]))][0]
     brain.add_label(lab_plot, borders=False, color="grey")
 
     brainviews = []
@@ -424,7 +419,7 @@ def plot_parcellated_metric(
 
     fig, ax = plt.subplots(figsize=_get_figsize_inches(figsize), layout="constrained")
     # Get fontsize for the figure
-    fontsize_fig = _get_correct_font_size(figsize)
+    fontsize_fig = _get_fontsize_ratio(figsize)
     img = ax.imshow(np.concatenate(brainviews, axis=1), cmap=cmap, norm=norm)
     cax = inset_axes(ax, width="50%", height="2%", loc=8, borderpad=3)
     cbar = fig.colorbar(
@@ -432,16 +427,14 @@ def plot_parcellated_metric(
     )
     if cbar_ticks is not None:
         cbar.set_ticks(cbar_ticks)
-    cbar.set_label(label=label, size=fontsize_fig)
+    cbar.set_label(label=label, size=fontsize_fig * fsize.LABEL_SIZE)
     cbar.mappable.set_clim(minv, maxv)
-    cbar.ax.tick_params(labelsize=fontsize_fig)
+    cbar.ax.tick_params(labelsize=fontsize_fig * fsize.TICK_SIZE)
 
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(title, fontsize=fontsize_fig)
+    ax.set_title(title, fontsize=fontsize_fig * fsize.TITLE_SIZE)
     _format_spines(ax, s_inv=["top", "right", "bottom", "left"])
-
-    _reset_default_rc()
 
     return fig, ax
 
@@ -549,8 +542,6 @@ def bar_plot(
         _type_: _description_
     """
 
-    _set_font_params()
-
     ax.bar(range(len(df_plot)), df_plot["mean"].sort_values(), color="k", alpha=0.5)
     ax.errorbar(
         range(len(df_plot)),
@@ -571,8 +562,6 @@ def bar_plot(
     ax.tick_params(axis="y", which="both", labelsize=fsize.TICK_SIZE)
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
     _format_spines(ax)
-
-    _reset_default_rc()
 
     return ax
 
@@ -601,8 +590,6 @@ def half_violin_plot(
     Returns:
         plt.Axes: modified axes.
     """
-
-    _set_font_params()
 
     # Plot point estimate
     ax.scatter(x=x_pos, y=y_data, color="k", s=81, zorder=10)
@@ -636,14 +623,10 @@ def half_violin_plot(
             ha="center",
         )
 
-    _reset_default_rc()
-
     return ax
 
 
-def slope_plot(ax: plt.Axes, df_plot: pd.DataFrame, ylabel=""):
-
-    _set_font_params()
+def slope_plot(ax: plt.Axes, df_plot: pd.DataFrame):
 
     # Extract labels
     labs = df_plot.columns.to_list()
@@ -678,8 +661,6 @@ def slope_plot(ax: plt.Axes, df_plot: pd.DataFrame, ylabel=""):
     ax.set_xticks(xticks, labels=labs)
     _format_spines(ax)
 
-    _reset_default_rc()
-
     return ax
 
 
@@ -708,8 +689,6 @@ def mni_plot(
     Returns:
         fig, ax: Figure and Axes objects.
     """
-
-    _set_font_params()
 
     if ax is None:
         fig, ax = plt.subplots(figsize=(20, 5), layout="constrained")
@@ -740,8 +719,6 @@ def mni_plot(
         )
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
 
-    _reset_default_rc()
-
     return fig, ax
 
 
@@ -752,6 +729,7 @@ def plot_corr(
     rho: float,
     p_corr: float,
     xy_annot=(0.7, 0.85),
+    markersize=12,
     alpha=0.05,
     color="k",
     color_line=None,
@@ -778,8 +756,6 @@ def plot_corr(
         ax: plotted Axes object
     """
 
-    _set_font_params()
-
     # Compute linear regression
     m, q, _, _, _ = linregress(x, y)
 
@@ -787,7 +763,7 @@ def plot_corr(
     if color_line is None:
         color_line = color
     x_plot = np.linspace(x.min(), x.max(), 100)
-    ax.scatter(x, y, c=color, s=16, alpha=0.6)
+    ax.scatter(x, y, c=color, s=markersize, alpha=0.6, edgecolors="none")
     ax.plot(x_plot, m * x_plot + q, c=color_line, lw=2, ls="--")
     # Add 95% prediction interval to regression line
     t_fact = t.ppf(1 - alpha / 2, len(x) - 2)
@@ -808,7 +784,7 @@ def plot_corr(
     ax.set_ylabel(ylabel, fontsize=fontsize_fig * fsize.LABEL_SIZE)
     ax.set_title(title, fontsize=fontsize_fig * fsize.TITLE_SIZE)
     if xlims is not None:
-        _format_spines(ax, s_bounds={"bottom": xlims})#, "left": ylims})
+        _format_spines(ax, s_bounds={"bottom": xlims})  # , "left": ylims})
     else:
         _format_spines(ax)
 
@@ -824,14 +800,10 @@ def plot_corr(
         fontsize=fontsize_fig * fsize.TEXT_SIZE,
     )
 
-    _reset_default_rc()
-
     return ax
 
 
 def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
-
-    _set_font_params()
 
     # Figure with absolute values
     fig, axs = plt.subplots(2, 1, figsize=(10, 10), layout="constrained")
@@ -893,8 +865,6 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
     axs[1].set_ylabel("Value", fontsize=fsize.LABEL_SIZE)
     axs[1].set_title(f"Relative timescales to Wake", fontsize=fsize.TITLE_SIZE)
 
-    _reset_default_rc()
-
     return fig, axs
 
 
@@ -907,14 +877,11 @@ def plot_sc_fit(
     figsize=(8, 8),
 ):
 
-    _set_font_params()
-
     gs_kw = dict(width_ratios=[3, 1])
     fig, axd = plt.subplot_mosaic(
         [["left", "upper right"], ["left", "center right"], ["left", "lower right"]],
         gridspec_kw=gs_kw,
         figsize=_get_figsize_inches(figsize),
-        # layout="constrained",
         dpi=600,
     )
     axs = [axd["left"], axd["upper right"], axd["center right"], axd["lower right"]]
@@ -945,18 +912,18 @@ def plot_sc_fit(
     )
     axs[0].set_xlabel("Distance [mm]", fontsize=fontsize_fig * fsize.LABEL_SIZE)
     axs[0].set_ylabel("Cross-correlation", fontsize=fontsize_fig * fsize.LABEL_SIZE)
-    axs[0].set_title("Exponential fit", fontsize=fontsize_fig * fsize.TITLE_SIZE)
+    # axs[0].set_title("Exponential fit", fontsize=fontsize_fig * fsize.TITLE_SIZE)
     _format_spines(axs[0])
 
     # Then, one subplot with data from all stages
     for i, stage in enumerate(data_stages.keys()):
-        axs[i + 1].plot(
+        axs[i + 1].scatter(
             data_stages[stage]["dist"],
             data_stages[stage][data_name],
-            "o",
             c=colors_stage[stage],
-            ms=0.5,
+            s=0.5,
             alpha=0.1,
+            rasterized=True,
         )
         axs[i + 1].plot(
             data_stages[stage]["dist"].sort_values(),
@@ -972,7 +939,5 @@ def plot_sc_fit(
         axs[i + 1].set_xticks([])
         axs[i + 1].set_yticks([])
         _format_spines(axs[i + 1])
-
-    _reset_default_rc()
 
     return fig, axs
