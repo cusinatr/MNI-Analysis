@@ -22,16 +22,16 @@ gamma_freqs = [40, 80]  # Hz
 compute_acf = True
 nlags = 100  # compute all lags
 tau_mode = "fit"  # fit, interp
-fit_func = "exp"  # exp, exp_oscill, exp_double
-fit_range = [0.015, 0.3]
+fit_func = "exp_double"  # exp, exp_oscill, exp_double
+fit_range = [0.001, 0.5]
 
 # PSD / SpectralParam parameters
-compute_psd = True
+compute_psd = False
 fit_mode = "knee"  # knee, fixed
 frange_fit = [1, 80]
 
 # Output folder
-out_dir = "Results_gamma"  # needs to match that in .yml file
+out_dir = "Results_gamma_double_exp"  # needs to match that in .yml file
 
 ###
 # Paths

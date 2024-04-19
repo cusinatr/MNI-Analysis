@@ -17,10 +17,10 @@ import mni_utils as uti
 ###
 
 data_path = Path("F:\\iEEG_neural_dynamics\\MNIOpen")
-res_dir = "Results_gamma"
-data_name = "all_knee.csv"
+res_dir = "Results_acf_fit_exp"
+data_name = "all_tau.csv"
 metric_name = "tau"
-save_name = "knee"
+save_name = "tau"
 
 ###
 # Import timescales dataframe

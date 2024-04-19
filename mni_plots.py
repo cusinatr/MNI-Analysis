@@ -417,7 +417,7 @@ def plot_parcellated_metric(
     brainviews.append(brain.screenshot())
     brain.close()
 
-    fig, ax = plt.subplots(figsize=_get_figsize_inches(figsize), layout="constrained")
+    fig, ax = plt.subplots(figsize=_get_figsize_inches(figsize))#, layout="constrained")
     # Get fontsize for the figure
     fontsize_fig = _get_fontsize_ratio(figsize)
     img = ax.imshow(np.concatenate(brainviews, axis=1), cmap=cmap, norm=norm)
@@ -427,13 +427,15 @@ def plot_parcellated_metric(
     )
     if cbar_ticks is not None:
         cbar.set_ticks(cbar_ticks)
-    cbar.set_label(label=label, size=fontsize_fig * fsize.LABEL_SIZE)
+    else:
+        cbar.set_ticks([minv, maxv])
+    cbar.set_label(label=label, size=22) #fontsize_fig * fsize.LABEL_SIZE)
     cbar.mappable.set_clim(minv, maxv)
-    cbar.ax.tick_params(labelsize=fontsize_fig * fsize.TICK_SIZE)
+    cbar.ax.tick_params(labelsize=22) #fontsize_fig * fsize.TICK_SIZE)
 
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(title, fontsize=fontsize_fig * fsize.TITLE_SIZE)
+    ax.set_title(title, fontsize=28) #fontsize_fig * fsize.TITLE_SIZE)
     _format_spines(ax, s_inv=["top", "right", "bottom", "left"])
 
     return fig, ax
@@ -938,6 +940,8 @@ def plot_sc_fit(
         # Remove ticks for these subplots
         axs[i + 1].set_xticks([])
         axs[i + 1].set_yticks([])
+        axs[i + 1].set_xlabel("Distance [mm]", fontsize=fontsize_fig * fsize.LABEL_SIZE * 0.6)
+        axs[i + 1].set_ylabel("Cross-correlation", fontsize=fontsize_fig * fsize.LABEL_SIZE * 0.6)
         _format_spines(axs[i + 1])
 
     return fig, axs
