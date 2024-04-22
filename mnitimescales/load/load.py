@@ -42,7 +42,7 @@ class Load:
         # Put info together in dataframe
         self.df_info = pd.DataFrame(
             {
-                "pat": pat_ids,
+                "pat": [str(pat_id).zfill(3) for pat_id in pat_ids],
                 "age": list(
                     itertools.chain.from_iterable(
                         [
@@ -93,7 +93,6 @@ class Load:
         # Loop through patients to extract epochs
         pats = self.df_info["pat"].unique().tolist()
         for pat in tqdm(pats, total=len(pats)):
-            pat_code = str(pat).zfill(3)
             df_info_pat = self.df_info[self.df_info["pat"] == pat]
             chans_pat = df_info_pat["chan"].to_list()
             # Raw MNE object
@@ -114,4 +113,4 @@ class Load:
                     band_freqs=filt_freqs,
                 )
             # Append to dictionary
-            self.epochs[pat_code] = epo_stage_pat
+            self.epochs[pat] = epo_stage_pat
