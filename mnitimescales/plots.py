@@ -10,7 +10,7 @@ import seaborn as sns
 import plotly.graph_objects as go
 from matplotlib import rcParams, rcParamsDefault, colors
 import matplotlib.patches as mpatches
-import mni_utils as uti
+import mnitimescales.utils as uti
 
 rcParams.update(rcParamsDefault)
 
