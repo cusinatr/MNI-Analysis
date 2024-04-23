@@ -24,7 +24,7 @@ class PipeTC:
     def _save_results(self, df: pd.DataFrame, save_path: Path, save_name: str):
 
         save_path.mkdir(parents=True, exist_ok=True)
-        df.to_csv(save_path.joinpath(save_name + ".csv"), index=False)
+        df.to_csv(save_path.joinpath(save_name + ".csv"))
 
     def _log_pipe(
         self,
@@ -113,26 +113,26 @@ class PipeTC:
 
             # 3) Parcellate results
             parc = Parcel(parc_path=self.parc_path)
-            df_timescales_parc, df_timescales_macro_mmp = parc.parcel_mmp(
+            df_timescales_mmp, df_timescales_mmp_macro = parc.parcel_mmp(
                 df_timescales, "tau"
             )
             df_timescales_mni = parc.parcel_mni(df_timescales)
 
             # 4) Save parcellated results
             self._save_results(
-                df_timescales_parc,
+                df_timescales_mmp,
                 self.results_path,
-                f"tau_parc_{stage}",
+                f"tau_{stage}_mmp",
             )
             self._save_results(
-                df_timescales_macro_mmp,
+                df_timescales_mmp_macro,
                 self.results_path,
-                f"tau_macro_mmp_{stage}",
+                f"tau_{stage}_mmp_macro",
             )
             self._save_results(
                 df_timescales_mni,
                 self.results_path,
-                f"tau_macro_mni_{stage}",
+                f"tau_{stage}_mni",
             )
 
         # 5) Save results across stages

@@ -87,13 +87,15 @@ class FitACF:
 
             df_info_pat = self.df_info[self.df_info["pat"] == pat]
             chans_pat = df_info_pat["chan"].to_list()
-            timescales_pat = self._compute_timescales_pat(pat, chans_pat)
 
+            # Check epochs are available
+            if self.epochs[pat] is None:
+                continue
+            timescales_pat = self._compute_timescales_pat(pat, chans_pat)
             df_timescales_pat = create_res_df(
-                df_info_pat, self.stage, columns_res=["tau"]
+                df_info_pat, self.epochs[pat].ch_names, self.stage, columns_res=["tau"]
             )
             df_timescales_pat["tau"] = timescales_pat
-
             df_timescales.append(df_timescales_pat)
 
         # Concatenate results

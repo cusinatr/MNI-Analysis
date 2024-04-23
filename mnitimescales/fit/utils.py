@@ -31,6 +31,7 @@ def create_pat_folder(pat_id: str, res_path: Path, chans: list):
 
 def create_res_df(
     df_info_pat: pd.DataFrame,
+    chs_good: list,
     stage: str,
     columns_res=[],
 ):
@@ -63,15 +64,16 @@ def create_res_df(
         ]
         + columns_res
     )
-    df_res_pat["pat"] = df_info_pat["pat"].to_list()
-    df_res_pat["age"] = df_info_pat["age"].to_list()
-    df_res_pat["gender"] = df_info_pat["gender"].to_list()
-    df_res_pat["chan"] = df_info_pat["chan"].to_list()
-    df_res_pat["type"] = df_info_pat["type"].to_list()
-    df_res_pat["stage"] = [stage] * len(df_info_pat)
-    df_res_pat["region"] = df_info_pat["region"].to_list()
-    df_res_pat["mni_x"] = df_info_pat["mni_x"].to_list()
-    df_res_pat["mni_y"] = df_info_pat["mni_y"].to_list()
-    df_res_pat["mni_z"] = df_info_pat["mni_z"].to_list()
+    df_info_pat_chs = df_info_pat[df_info_pat["chan"].isin(chs_good)]
+    df_res_pat["pat"] = df_info_pat_chs["pat"].to_list()
+    df_res_pat["age"] = df_info_pat_chs["age"].to_list()
+    df_res_pat["gender"] = df_info_pat_chs["gender"].to_list()
+    df_res_pat["chan"] = df_info_pat_chs["chan"].to_list()
+    df_res_pat["type"] = df_info_pat_chs["type"].to_list()
+    df_res_pat["stage"] = [stage] * len(df_info_pat_chs)
+    df_res_pat["region"] = df_info_pat_chs["region"].to_list()
+    df_res_pat["mni_x"] = df_info_pat_chs["mni_x"].to_list()
+    df_res_pat["mni_y"] = df_info_pat_chs["mni_y"].to_list()
+    df_res_pat["mni_z"] = df_info_pat_chs["mni_z"].to_list()
 
     return df_res_pat

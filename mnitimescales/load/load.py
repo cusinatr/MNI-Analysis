@@ -54,7 +54,7 @@ class Load:
                 "gender": list(
                     itertools.chain.from_iterable(
                         [
-                            [gender] * (pat_ids == pat_id).sum()
+                            [gender[0]] * (pat_ids == pat_id).sum()
                             for pat_id, gender in zip(set(pat_ids), genders)
                         ]
                     )

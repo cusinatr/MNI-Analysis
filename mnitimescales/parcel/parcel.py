@@ -68,19 +68,19 @@ class Parcel:
         )
 
         # Compute also metrics for "macro" regions
-        df_metric_mmp_macro = pd.DataFrame(
+        df_metric_macro = pd.DataFrame(
             columns=np.unique(self.mmp_aggr["macro_labels"])
         )
         for i_r, r in self.mmp_aggr.groupby("macro_labels"):
-            df_metric_mmp_macro[i_r] = compute_weighted_average(
+            df_metric_macro[i_r] = compute_weighted_average(
                 df_metric_weighted_avg[r["parcel"]],
                 df_W_max_avg[r["parcel"]],
                 axis=1,
                 method="thresh_weighted",
             )
         df_metric_mmp_macro = pd.DataFrame(columns=["mean", "sem"])
-        df_metric_mmp_macro["mean"] = df_metric_mmp_macro.mean(axis=0)
-        df_metric_mmp_macro["sem"] = df_metric_mmp_macro.sem(axis=0)
+        df_metric_mmp_macro["mean"] = df_metric_macro.mean(axis=0)
+        df_metric_mmp_macro["sem"] = df_metric_macro.sem(axis=0)
 
         return df_metric_mmp, df_metric_mmp_macro
 
