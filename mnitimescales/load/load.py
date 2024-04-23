@@ -69,6 +69,8 @@ class Load:
         )
         self.df_info["region"] = self.df_info["region"].apply(lambda x: regions_map[x])
 
+        return self.df_info
+
     def load_epo_stage(
         self,
         stage,
@@ -97,9 +99,7 @@ class Load:
             chans_pat = df_info_pat["chan"].to_list()
             # Raw MNE object
             data_stage_pat = data_stage[df_info_pat.index]
-            raw_stage_pat = create_RawMNE(
-                data_stage_pat, chans_pat, sfreq
-            )
+            raw_stage_pat = create_RawMNE(data_stage_pat, chans_pat, sfreq)
 
             # Get epochs
             if raw_stage_pat is None:
@@ -114,3 +114,5 @@ class Load:
                 )
             # Append to dictionary
             self.epochs[pat] = epo_stage_pat
+
+        return self.epochs

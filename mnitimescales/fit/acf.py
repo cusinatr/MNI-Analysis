@@ -5,6 +5,15 @@ from .utils import create_pat_folder, create_res_df
 
 
 class FitACF:
+    """_summary_
+
+    Args:
+        df_info (pd.DataFrame): _description_
+        epochs (dict): _description_
+        stage (str): _description_
+        results_path (str): _description_
+        config_path (str): _description_
+    """
 
     def __init__(
         self,
@@ -46,12 +55,34 @@ class FitACF:
 
         return list(tau_pat.values())
 
-    def compute_timescales(self):
+    def compute_timescales(
+        self,
+        nlags: int,
+        tau_mode: str,
+        fit_func: str,
+        fit_range: list,
+    ) -> pd.DataFrame:
+        """_summary_
+
+        Args:
+            nlags (int): _description_
+            tau_mode (str): _description_
+            fit_func (str): _description_
+            fit_range (list): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+
+        self.nlags = nlags
+        self.tau_mode = tau_mode
+        self.fit_func = fit_func
+        self.fit_range = fit_range
 
         pats = self.df_info["pat"].unique().tolist()
         df_timescales = []
 
-        for pat in enumerate(pats):
+        for pat in pats:
             print("Patient: ", pat)
 
             df_info_pat = self.df_info[self.df_info["pat"] == pat]

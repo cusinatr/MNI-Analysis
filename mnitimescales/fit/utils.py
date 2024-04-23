@@ -15,7 +15,7 @@ def create_pat_folder(pat_id: str, res_path: Path, chans: list):
     """
 
     # Create folders & files
-    pat_path = res_path.joinpath(("Pats", pat_id))
+    pat_path = res_path.joinpath("Pats", pat_id)
     pat_path.mkdir(parents=True, exist_ok=True)
     proc_path = pat_path.joinpath("ProcData")
     proc_path.mkdir(parents=True, exist_ok=True)
