@@ -52,13 +52,13 @@ class Parcel:
             self.MMP_map_nonzero,
             self.MMP_data.affine,
             d,
-            feature=metric_name,
+            feature_name=metric_name,
         )
         # Collapse across subjects and voxels
         (
             df_W_max_avg,
             df_metric_weighted_avg,
-            df_metric_parc,
+            df_metric_mmp,
         ) = compute_parc_metric_weight(
             metric_weighted,
             W_max,
@@ -68,21 +68,21 @@ class Parcel:
         )
 
         # Compute also metrics for "macro" regions
-        df_metric_macro_mmp = pd.DataFrame(
+        df_metric_mmp_macro = pd.DataFrame(
             columns=np.unique(self.mmp_aggr["macro_labels"])
         )
         for i_r, r in self.mmp_aggr.groupby("macro_labels"):
-            df_metric_macro_mmp[i_r] = compute_weighted_average(
+            df_metric_mmp_macro[i_r] = compute_weighted_average(
                 df_metric_weighted_avg[r["parcel"]],
                 df_W_max_avg[r["parcel"]],
                 axis=1,
                 method="thresh_weighted",
             )
-        df_metric_macro_mmp = pd.DataFrame(columns=["mean", "sem"])
-        df_metric_macro_mmp["mean"] = df_metric_macro_mmp.mean(axis=0)
-        df_metric_macro_mmp["sem"] = df_metric_macro_mmp.sem(axis=0)
+        df_metric_mmp_macro = pd.DataFrame(columns=["mean", "sem"])
+        df_metric_mmp_macro["mean"] = df_metric_mmp_macro.mean(axis=0)
+        df_metric_mmp_macro["sem"] = df_metric_mmp_macro.sem(axis=0)
 
-        return df_metric_parc, df_metric_macro_mmp
+        return df_metric_mmp, df_metric_mmp_macro
 
     def parcel_mni(self, df_metric: pd.DataFrame):
 

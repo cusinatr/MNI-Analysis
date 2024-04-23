@@ -7,6 +7,9 @@ from mnitimescales import PipeTC
 # Analysis parameters
 ###
 
+# Output folder
+out_dir = "timescales_broadband"
+
 # Epochs duration
 epo_dur = 1  # s
 epo_overlap = 0.5  # s
@@ -24,9 +27,6 @@ fit_range = [0.001, 0.5]
 ###
 # Paths
 ###
-
-# Output folder
-out_dir = "test"
 
 base_path = Path("F:\\MNIOpen")
 mat_path = base_path.joinpath("Data", "Raw", "MatlabFile.mat")
