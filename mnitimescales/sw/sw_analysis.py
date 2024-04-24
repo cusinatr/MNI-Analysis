@@ -1,6 +1,7 @@
 from pathlib import Path
 import pickle
 import pandas as pd
+import numpy as np
 from . import utils as utils_sw
 from . import plots as plots_sw
 
@@ -12,15 +13,17 @@ class ComputeSW:
         df_info: pd.DataFrame,
         raws: dict,
         stage: str,
-        results_path: str,
+        results_path: Path,
         sw_freqs=[0.5, 4],
-        gamma_freqs=[40, 80],
+        gamma_freqs=[30, 80],
     ):
 
         self.df_info = df_info
         self.raws = raws
         self.stage = stage
         self.results_path = results_path
+        self.sw_path = self.results_path.joinpath("Pats")
+        self.sw_path.mkdir(exist_ok=True)
         # Parameters for analysis
         self.sw_freqs = sw_freqs
         self.gamma_freqs = gamma_freqs
@@ -34,27 +37,17 @@ class ComputeSW:
     def _prepare_raw(self, raw):
 
         raw_ds = utils_sw.downsample_raw(raw)
-        hypno = utils_sw.load_hypnogram(raw_ds)  # TODO: crete surrogate hypno
-
-        # TODO: create raw object
-        # Low frequency
-        raw_sw = raw_ds.copy().filter(
-            0.3,
-            1.25,
-            # l_trans_bandwidth=0.3,
-            # h_trans_bandwidth=1.6,
-        )
-
-        # Gamma band
-        raw_gamma = raw.copy().filter(
-            40,
-            80,
-        )
+        hypno = utils_sw.load_hypnogram(raw_ds, self.stage)
+        # Low frequency raw
+        raw_sw = raw_ds.copy().filter(*self.sw_freqs)
+        # Gamma power raw
+        raw_gamma = raw.copy().filter(*self.gamma_freqs)
         raw_gamma = raw_gamma.apply_hilbert(envelope=True)
+        raw_gamma._data = 2 * np.log10(raw_gamma._data)  # get log power
 
         return raw_sw, raw_gamma, hypno
 
-    def _detect_sw_pat(self, pat, chans_pat):
+    def _detect_sw_pat(self, pat):
 
         raw_sw, raw_gamma, hypno = self._prepare_raw(self.raws[pat])
 
@@ -72,36 +65,45 @@ class ComputeSW:
             t_epoch_sws=self.t_epo_sws,
         )
 
-        # Compute SW overlap
-        sw_overlap, sw_delays = utils_sw.sw_conn(sw_events, sw_window=0.3)
-
-        # Save rerults
+        # Compte SW density
         sw_density = utils_sw.sw_density(
             sw_events,
             hypno,
             raw_sw.info["ch_names"],
             raw_sw.info["sfreq"],
         )
-        sw_density.to_csv(self.results_path.joinpath("SW_density.csv"))
-        sw_events.to_csv(self.results_path.joinpath("SW_events.csv"))
-        with open(self.results_path.joinpath("SW_overlap.pkl"), "wb") as f:
-            pickle.dump(sw_overlap, f, protocol=pickle.HIGHEST_PROTOCOL)
-        with open(self.results_path.joinpath("SW_delays.pkl"), "wb") as f:
-            pickle.dump(sw_delays, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # Compute SW overlap
+        sw_overlap = utils_sw.sw_conn(sw_events)
+        # Theshold of "involvement" between local and global SWs
+        loc_glo_threshold, sw_glo_bool = utils_sw.compute_sw_global_threshold(
+            sw_overlap
+        )
+        # Add column in events dataframe
+        sw_glo_bool = np.concatenate(
+            list({ch: sw_glo_bool[ch] for ch in sw_events.Channel.unique()}.values()),
+            dtype=int
+        )
+        sw_events.insert(11, "Global", sw_glo_bool)
 
         # Plot results
         plots_sw.plot_sw_gamma(
             epo_swa,
             epo_gamma,
             t_epoch_sws=self.t_epo_sws,
-            save_path=self.results_path,
+            save_path=self.pat_path,
             save_name="SWA_gamma",
         )
-        # Threshold for detecting global waves
         plots_sw.plot_sw_loc_glo(
-            epo_swa, sw_overlap, self.t_epo_sws, save_path=self.results_path
+            epo_swa,
+            sw_overlap,
+            loc_glo_threshold,
+            self.t_epo_sws,
+            save_path=self.pat_path,
         )
-        plots_sw.plot_sw_overlap(sw_overlap, sw_delays, save_path=self.results_path)
+        plots_sw.plot_sw_overlap(sw_overlap, save_path=self.pat_path)
+
+        return sw_events, sw_density, sw_overlap
 
     def detect_sw(
         self,
@@ -123,9 +125,16 @@ class ComputeSW:
         pats = self.df_info["pat"].unique().tolist()
         for pat in pats:
             print("Patient: ", pat)
-            df_info_pat = self.df_info[self.df_info["pat"] == pat]
-            chans_pat = df_info_pat["chan"].to_list()
+            self.pat_path = self.sw_path.joinpath(pat)
+            self.pat_path.mkdir(exist_ok=True)
+
             # Check raw is available
             if self.raws[pat] is None:
                 continue
-            self._detect_sw_pat(pat, chans_pat)
+            sw_events_pat, sw_density_pat, sw_overlap_pat = self._detect_sw_pat(pat)
+
+            # Save results
+            sw_events_pat.to_csv(self.pat_path.joinpath("SW_events.csv"))
+            sw_density_pat.to_csv(self.pat_path.joinpath("SW_density.csv"))
+            with open(self.pat_path.joinpath("SW_overlap.pkl"), "wb") as f:
+                pickle.dump(sw_overlap_pat, f, protocol=pickle.HIGHEST_PROTOCOL)

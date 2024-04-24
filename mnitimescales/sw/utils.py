@@ -5,72 +5,48 @@ from tqdm import tqdm
 from scipy.stats import zscore
 from yasa import sw_detect
 
-###
-# Functions for Slow Wave analysis
-###
 
+def load_hypnogram(raw: mne.io.RawArray, stage: str, bads_buffer=0.0) -> np.ndarray:
+    """Create hypnogram with 'bad' annotations.
 
-# def load_hypnogram(raw: mne.io.RawArray, mark_bads=True, bads_buffer=0.5) -> np.ndarray:
-#     """Create hypnogram from raw annotations.
+    Args:
+        raw (mne.io.RawArray): MNE Raw object with bad periods.
+        bads_buffer (int, optional): Periods around bads to mark as artifacts, in s. Defaults to 0.
 
-#     Args:
-#         raw (mne.io.RawArray): MNE Raw object with sleep scoring and bads.
-#         mark_bads (bool, optional): Whether to mark bad periods as artifacts. Defaults to True.
-#         bads_buffer (int, optional): Periods around bads to mark as artifacts, in s. Defaults to 0.5.
+    Returns:
+        np.ndarray: hypnogram, with the same sfreq as raw.
+    """
 
-#     Returns:
-#         np.ndarray: hypnogram, with the same sfreq as raw.
-#     """
+    # Mapping of stages
+    stage_code_map = {"W": 0, "N1": 1, "N2": 2, "N3": 3, "R": 4, "bad": -1}
 
-#     # Mapping of stages
-#     stage_code_map = {"W": 0, "N1": 1, "N2": 2, "N3": 3, "R": 4, "bad": -1}
+    # Create container for stages
+    df_hypnogram = pd.DataFrame(columns=["t", "stage"])
+    df_hypnogram["t"] = raw.times
+    df_hypnogram["stage"] = stage_code_map[stage]
 
-#     # Create container for stages
-#     df_hypnogram = pd.DataFrame(columns=["t", "stage"])
-#     df_hypnogram["t"] = raw.times
-#     df_hypnogram["stage"] = -2
+    # Get relative onset of annotations
+    df_annots = raw.annotations.to_data_frame()
+    df_annots.drop_duplicates(inplace=True)
+    df_annots["onset_rel"] = [
+        row["onset"].value / 1e9 for _, row in df_annots.iterrows()
+    ]
 
-#     # Get relative onset of annotations
-#     df_annots = raw.annotations.to_data_frame()
-#     df_annots.drop_duplicates(inplace=True)
-#     t0 = df_annots.loc[0, "onset"]
-#     df_annots["onset_rel"] = [
-#         (row["onset"] - t0).value / 1e9 for _, row in df_annots.iterrows()
-#     ]
+    # Mark bad periods
+    df_annots_bads = df_annots[df_annots["description"].isin(["bad", "BAD_ACQ_SKIP"])]
+    for _, row in df_annots_bads.iterrows():
+        # Get onset and duration in seconds
+        onset = row["onset_rel"]
+        duration = row["duration"]
 
-#     # Fill hypnogram with stages annotations
-#     df_annots_stages = df_annots[
-#         df_annots["description"].isin(["W", "N1", "N2", "N3", "R"])
-#     ]
-#     for _, row in df_annots_stages.iterrows():
-#         # Get onset and duration in seconds
-#         onset = row["onset_rel"]
-#         duration = row["duration"]
+        # Fill hypnogram
+        df_hypnogram.loc[
+            (df_hypnogram["t"] >= onset - bads_buffer)
+            & (df_hypnogram["t"] < onset + duration + bads_buffer),
+            "stage",
+        ] = -1
 
-#         # Fill hypnogram
-#         df_hypnogram.loc[
-#             (df_hypnogram["t"] >= onset) & (df_hypnogram["t"] < onset + duration),
-#             "stage",
-#         ] = stage_code_map[row["description"]]
-
-#     # Mark bad periods
-#     if mark_bads:
-#         df_annots_bads = df_annots[
-#             df_annots["description"].isin(["bad", "BAD_ACQ_SKIP"])
-#         ]
-#         for _, row in df_annots_bads.iterrows():
-#             # Get onset and duration in seconds
-#             onset = row["onset_rel"]
-#             duration = row["duration"]
-
-#             # Fill hypnogram
-#             df_hypnogram.loc[
-#                 (df_hypnogram["t"] >= onset - bads_buffer)
-#                 & (df_hypnogram["t"] < onset + duration + bads_buffer),
-#                 "stage",
-#             ] = -1
-
-#     return df_hypnogram["stage"].to_numpy()
+    return df_hypnogram["stage"].to_numpy()
 
 
 def downsample_raw(raw):
@@ -101,10 +77,16 @@ def _epoch_sws(sw_events, data_raw, ch_names, sfreq, center, t_around=2):
     for i, ch in enumerate(ch_names):
         sw_events_ch = sw_events[sw_events.Channel == ch].copy()
         idx_sws_ch = np.r_[
-            [
-                np.arange(int(t * sfreq - t_around_tps), int(t * sfreq + t_around_tps))
-                for t in sw_events_ch[center]
-            ]
+            np.array(
+                [
+                    np.arange(
+                        int(t * sfreq) - t_around_tps,
+                        int(t * sfreq) + t_around_tps,
+                        dtype=int,
+                    )
+                    for t in sw_events_ch[center]
+                ]
+            )
         ]
         data_sws_ch = data_raw[i, idx_sws_ch].reshape(len(sw_events_ch), -1)
         epo_sws_ch[ch] = data_sws_ch
@@ -116,7 +98,11 @@ def _check_swa_gamma(swa_mean, gamma_mean, sf_swa, sf_gamma):
     """Check if slow waves and gamma have the same polarity."""
 
     # Find minimum and zero-crossings
-    idx_neg_peak = np.argmin(swa_mean)
+    idx_mid = len(swa_mean) // 2
+    idx_search = len(swa_mean) // 4
+    idx_neg_peak = np.argmin(swa_mean[idx_mid - idx_search : idx_mid + idx_search]) + (
+        idx_mid - idx_search
+    )
     idx_zc_pn = np.where(np.diff(np.sign(swa_mean)) < 0)[0] + 1
     idx_zc_np = np.where(np.diff(np.sign(swa_mean)) > 0)[0] + 1
 
@@ -124,8 +110,16 @@ def _check_swa_gamma(swa_mean, gamma_mean, sf_swa, sf_gamma):
     idx_neg = np.arange(
         idx_zc_pn[idx_zc_pn < idx_neg_peak][-1], idx_zc_np[idx_zc_np > idx_neg_peak][0]
     )
-    idx_pos_left = np.arange(idx_zc_np[idx_zc_np < idx_neg[0]][-1], idx_neg[0])
-    idx_pos_right = np.arange(idx_neg[-1] + 1, idx_zc_pn[idx_zc_pn > idx_neg[-1]][0])
+    if idx_zc_np[idx_zc_np < idx_neg[0]].size != 0:
+        idx_cross_left = idx_zc_np[idx_zc_np < idx_neg[0]][-1]
+    else:
+        idx_cross_left = 0
+    idx_pos_left = np.arange(idx_cross_left, idx_neg[0])
+    if idx_zc_pn[idx_zc_pn > idx_neg[-1]].size != 0:
+        idx_cross_right = idx_zc_pn[idx_zc_pn > idx_neg[-1]][0]
+    else:
+        idx_cross_right = len(swa_mean)
+    idx_pos_right = np.arange(idx_neg[-1] + 1, idx_cross_right)
 
     # Check where gamma is higher
     f = int(sf_gamma / sf_swa)
@@ -208,18 +202,20 @@ def _detect_sws(
             sw_events_ch = sw_events[sw_events.Channel == ch].copy()
             # Thresholds based on PTP amplitude
             ptp_thre = np.percentile(sw_events_ch.PTP, 100 - amp_percentile)
-            ptp_max = np.percentile(
-                sw_events_ch.PTP, 99
-            )  # potential non-physiological events
+            # ptp_max = np.percentile(
+            #     sw_events_ch.PTP, 99
+            # )  # potential non-physiological events
             # Thresholds based on negative amplitude
             neg_thre = np.percentile(sw_events_ch.ValNegPeak, amp_percentile)
             neg_min = np.percentile(
                 sw_events_ch.ValNegPeak, 1
             )  # potential non-physiological events
             sw_events_ch = sw_events_ch[
-                (sw_events_ch.PTP >= ptp_thre)
-                & (sw_events_ch.PTP < ptp_max)(sw_events_ch.ValNegPeak <= neg_thre)
-                & (sw_events_ch.ValNegPeak > neg_min)
+                sw_events_ch.PTP
+                >= ptp_thre
+                # & (sw_events_ch.PTP < ptp_max)
+                # (sw_events_ch.ValNegPeak <= neg_thre)
+                # & (sw_events_ch.ValNegPeak > neg_min)
             ]
             sw_events_thres.append(sw_events_ch)
         # Concatenate back every channel
@@ -298,7 +294,7 @@ def detect_sws_gamma(
     epo_swa_mean = {ch: np.mean(e, axis=0) for ch, e in epo_swa.items()}
 
     # Get gamma data aroud SWs
-    data_gamma = raw_gamma.get_data() ** 2  # square for power
+    data_gamma = raw_gamma.get_data()
     epo_gamma = _epoch_sws(
         sw_events_orig,
         data_gamma,
@@ -350,7 +346,7 @@ def detect_sws_gamma(
         center=center_sws,
         t_around=t_epoch_sws,
     )
-    data_gamma = raw_gamma.get_data() ** 2  # square for power
+    data_gamma = raw_gamma.get_data()
     epo_gamma = _epoch_sws(
         sw_events,
         data_gamma,
@@ -395,19 +391,17 @@ def sw_density(
     return sw_density
 
 
-def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.4):
+def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.3):
     """Compute connectivity matrices through SWs measures
 
     Args:
         sw_events (pd.Dataframe): yasa's dataframe with SWs events
         chs_good (list, optional): list of good channels to consider. Defaults to None.
-        sw_window (float, optional): window around SWs in s to consider for overlap and delays. Defaults to 0.4.
+        sw_window (float, optional): window around SWs in s to consider for overlap and delays. Defaults to 0.3.
 
     Returns:
         dict: sw_overlap, each key is a channel, values are dataframes (n_SWs_ch, n_chs)
         with binary values of overlap of SWs between channels
-        dict: sw_delays, each key is a channel, values are dataframes (n_SWs_ch, n_chs)
-        with time delays of negative peaks between channels
     """
     chs_sws = sw_events.Channel.unique()
     if chs_good is not None:
@@ -415,7 +409,7 @@ def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.4):
 
     # Dict for results
     sw_overlap = {}
-    sw_delays = {}
+    # sw_delays = {}
 
     # Loop over channels as "seeds"
     for ch_seed in tqdm(chs_sws):
@@ -423,7 +417,7 @@ def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.4):
         sws_ch_seed = sw_events[sw_events.Channel == ch_seed]
         # Matrix for channel results
         sw_overlap_ch = np.zeros((len(sws_ch_seed), len(chs_sws)))
-        sw_delays_ch = np.full_like(sw_overlap_ch, np.nan)
+        # sw_delays_ch = np.full_like(sw_overlap_ch, np.nan)
         # SWs times
         t_peak_seed = sws_ch_seed.NegPeak.to_numpy()
         # t_start = sws_ch_seed.Start.to_numpy().reshape(-1, 1)
@@ -449,25 +443,25 @@ def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.4):
             sw_overlap_seed_targ[sw_overlap_seed_targ > 1] = 0
             sw_overlap_ch[:, i] = sw_overlap_seed_targ
 
-            # Compute delay times
-            # t_peak_targ = sws_ch_targ.NegPeak.to_numpy()
-            idx_seed_delays = np.where(sw_overlap_seed_targ == 1)[0]
-            idx_target_delays = np.where(mask_overlap[idx_seed_delays] == 1)[1]
-            delays = t_peak_seed[idx_seed_delays] - t_target[idx_target_delays]
-            sw_delays_ch[idx_seed_delays, i] = delays
+            # # Compute delay times
+            # # t_peak_targ = sws_ch_targ.NegPeak.to_numpy()
+            # idx_seed_delays = np.where(sw_overlap_seed_targ == 1)[0]
+            # idx_target_delays = np.where(mask_overlap[idx_seed_delays] == 1)[1]
+            # delays = t_peak_seed[idx_seed_delays] - t_target[idx_target_delays]
+            # sw_delays_ch[idx_seed_delays, i] = delays
 
         # Store results for seed channel
         sw_overlap_ch = pd.DataFrame(sw_overlap_ch, columns=chs_sws)
         sw_overlap_ch.drop(columns=ch_seed, inplace=True)
         sw_overlap[ch_seed] = sw_overlap_ch
-        sw_delays_ch = pd.DataFrame(sw_delays_ch, columns=chs_sws)
-        sw_delays_ch.drop(columns=ch_seed, inplace=True)
-        sw_delays[ch_seed] = sw_delays_ch
+        # sw_delays_ch = pd.DataFrame(sw_delays_ch, columns=chs_sws)
+        # sw_delays_ch.drop(columns=ch_seed, inplace=True)
+        # sw_delays[ch_seed] = sw_delays_ch
 
-    return sw_overlap, sw_delays
+    return sw_overlap  # , sw_delays
 
 
-def _compute_sw_global_threshold(sw_overlap: dict) -> float:
+def compute_sw_global_threshold(sw_overlap: dict) -> float:
     """Compute global threshold for SWs.
 
     Args:
@@ -477,11 +471,15 @@ def _compute_sw_global_threshold(sw_overlap: dict) -> float:
         float: global threshold for SWs.
     """
     # Compute global threshold
-    glo_thre = np.median(
+    glo_thre = np.mean(
         [np.median(swo.mean(axis=1).to_numpy()) for swo in sw_overlap.values()]
     )
+    # Compute dict with binary values
+    sw_glo_bool = {
+        ch: sw_overlap[ch].mean(axis=1) >= glo_thre for ch in sw_overlap.keys()
+    }
 
-    return glo_thre
+    return glo_thre, sw_glo_bool
 
 
 # def format_sw_density_timecourse(

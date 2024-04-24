@@ -4,7 +4,7 @@ import pandas as pd
 from scipy.stats import zscore
 import matplotlib.pyplot as plt
 import seaborn as sns
-from .utils import _compute_sw_global_threshold
+from .utils import compute_sw_global_threshold
 
 
 def _align_yaxis(ax1, ax2):
@@ -107,8 +107,6 @@ def plot_sw_gamma_single(
 def plot_sw_gamma(
     epo_swa: dict,
     epo_gamma: dict,
-    # info_df: pd.DataFrame,
-    # df_labels: pd.DataFrame,
     t_epoch_sws: float,
     figsize=(6, 4.5),
     show=False,
@@ -132,8 +130,6 @@ def plot_sw_gamma(
         save_name (str, optional): Root name to save each plot. Defaults to "SW_gamma".
         save_format (str, optional): Format for saving figure. Defaults to "pdf".
     """
-    # chs_all = info_df.index.to_list()
-    # chs_good = info_df.index[info_df.bad == False].to_list()
 
     ###
     # All channels
@@ -153,13 +149,14 @@ def plot_sw_gamma(
         figsize=(figsize[0] * n_cols, figsize[1] * n_rows),
         layout="constrained",
     )
+    if axs.ndim == 1:
+        axs = axs.reshape(1, -1)
     idx_ch = 0
     for col in range(n_cols):
         for row in range(n_rows):
+            if idx_ch >= len(ch_names):
+                continue
             ch_name = ch_names[idx_ch]
-            # ch_bad = ch_name not in chs_good
-
-            # if not ch_bad:
             plot_sw_gamma_single(
                 axs[row, col],
                 epo_swa[ch_name],
@@ -167,18 +164,9 @@ def plot_sw_gamma(
                 t_epoch_sws,
                 show=False,
             )
-
-            # Title
-            # title = ch_name
-            # title += " (BAD)" if ch_bad else ""
             axs[row, col].set_title(ch_name, fontsize=15)
 
             idx_ch += 1
-
-            # # Split channels is blocks if provided
-            # if blocks:
-            #     if (row + 1) == blocks[col]:
-            #         break
 
     if save:
         savepath = Path(save_path).joinpath(save_name + "_grid." + save_format)
@@ -192,9 +180,7 @@ def plot_sw_gamma(
 
     fig, ax = plt.subplots(1, 1, figsize=(figsize[0] * 2, figsize[1] * 2))
     # Compute averages
-    # epo_swa = {k: v for k, v in epo_swa.items() if k in chs_good}
     avg_swa = np.array([np.mean(epo_ch, axis=0) for epo_ch in epo_swa.values()])
-    # epo_gamma_good = {k: v for k, v in epo_gamma.items() if k in chs_good}
     avg_gamma = np.array(
         [np.mean(epo_ch, axis=0) for epo_ch in epo_gamma.values()]
     )
@@ -243,7 +229,7 @@ def plot_sw_loc_glo_single(
 
     # Compute threshold and indexes from overlap
     if thre_glo is None:
-        thre_glo = _compute_sw_global_threshold(sw_overlap)
+        thre_glo = np.median(sw_overlap.mean(axis=1))
     idx_loc = np.where(sw_overlap.mean(axis=1) < thre_glo)[0]
     idx_glo = np.where(sw_overlap.mean(axis=1) >= thre_glo)[0]
 
@@ -294,7 +280,7 @@ def plot_sw_loc_glo_single(
 def plot_sw_loc_glo(
     epo_swa: dict,
     sw_overlap: dict,
-    # info_df: pd.DataFrame,
+    thre_glo: float,
     t_epoch_sws: float,
     figsize=(6, 4.5),
     show=False,
@@ -308,6 +294,7 @@ def plot_sw_loc_glo(
     Args:
         epo_swa (dict): Low-filtered data around SWs for each channel (keys).
         sw_overlap (dict): dict with SW overlap for each channel (keys).
+        thre_glo (float): threshold to separate local / global SWs.
         info_df (pd.DataFrame): dataframe with channels metadata (good/bad).
         t_epoch_sws (float): s around SWs to plot.
         figsize (tuple, optional): Size of each subplot. Defaults to (6, 4.5).
@@ -317,8 +304,6 @@ def plot_sw_loc_glo(
         save_name (str, optional): Root name to save each plot. Defaults to "SW_loc_glo".
         save_format (str, optional): Format for saving figure. Defaults to "pdf".
     """
-    # chs_all = info_df.index.to_list()
-    # chs_good = info_df.index[info_df.bad == False].to_list()
 
     ###
     # All channels
@@ -338,32 +323,25 @@ def plot_sw_loc_glo(
         figsize=(figsize[0] * n_cols, figsize[1] * n_rows),
         layout="constrained",
     )
+    if axs.ndim == 1:
+        axs = axs.reshape(1, -1)
     idx_ch = 0
     for col in range(n_cols):
         for row in range(n_rows):
+            if idx_ch >= len(ch_names):
+                continue
             ch_name = ch_names[idx_ch]
-            # ch_bad = ch_name not in chs_good
-
-            # if not ch_bad:
             axs[row, col] = plot_sw_loc_glo_single(
                 axs[row, col],
                 epo_swa[ch_name],
                 sw_overlap[ch_name],
+                thre_glo=thre_glo,
                 t_epoch_sws=t_epoch_sws,
                 show=False,
             )
-
-            # Title
-            # title = ch_name
-            # title += " (BAD)" if ch_bad else ""
             axs[row, col].set_title(ch_name, fontsize=15)
 
             idx_ch += 1
-
-            # # Split channels is blocks if provided
-            # if blocks:
-            #     if (row + 1) == blocks[col]:
-            #         break
 
     if save:
         savepath = Path(save_path).joinpath(save_name + "_grid." + save_format)
@@ -376,7 +354,6 @@ def plot_sw_loc_glo(
 
 def plot_sw_overlap(
     sw_overlap: dict,
-    sw_delays: dict,
     show=False,
     save=True,
     save_path="",
@@ -387,7 +364,6 @@ def plot_sw_overlap(
 
     Args:
         sw_overlap (dict): dict with SW overlap for each channel (keys).
-        sw_delays (dict): dict with SW delays for each channel (keys).
         show (bool, optional): Whether to show the figure. Defaults to False.
         save (bool, optional): Whether to save the figure. Defaults to True.
         save_path (str, optional): Directory where to save the plot. Defaults to "".
@@ -396,10 +372,6 @@ def plot_sw_overlap(
     """
     # Get good channels
     chs_good = list(sw_overlap.keys())
-
-    ###
-    # Proportion of overlap plot
-    ###
 
     sw_overlap_prop = pd.DataFrame(
         np.zeros((len(chs_good), len(chs_good))), index=chs_good, columns=chs_good
@@ -412,26 +384,6 @@ def plot_sw_overlap(
 
     if save:
         savepath = Path(save_path).joinpath(save_name + "_overlap." + save_format)
-        fig.savefig(savepath, bbox_inches="tight", format=save_format)
-
-    if show:
-        plt.show()
-
-    ###
-    # Time delays plot
-    ###
-
-    sw_overlap_del = pd.DataFrame(
-        np.zeros((len(chs_good), len(chs_good))), index=chs_good, columns=chs_good
-    )
-    for ch in sw_delays.keys():
-        sw_overlap_del.loc[ch, :] = sw_delays[ch].median(axis=0) * 1000
-
-    fig, ax = plt.subplots(figsize=(30, 20))
-    sns.heatmap(sw_overlap_del, annot=True, fmt=".0f", ax=ax, cmap="vlag")
-
-    if save:
-        savepath = Path(save_path).joinpath(save_name + "_delays." + save_format)
         fig.savefig(savepath, bbox_inches="tight", format=save_format)
 
     if show:
