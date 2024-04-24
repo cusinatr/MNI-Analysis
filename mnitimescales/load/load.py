@@ -2,6 +2,7 @@ from pathlib import Path
 import itertools
 from scipy.io import loadmat
 import pandas as pd
+import numpy as np
 from tqdm import tqdm
 from .utils import create_RawMNE, create_epo
 
@@ -17,6 +18,7 @@ class Load:
 
         self.raw_data = None
         self.df_info = None
+        self.raws = {}
         self.epochs = {}
 
     def _load_raw_data(self):
@@ -32,9 +34,15 @@ class Load:
         ch_types = self.raw_data["ChannelType"].squeeze()
         ch_regs = self.raw_data["ChannelRegion"].squeeze()
         pat_ids = self.raw_data["Patient"].squeeze()
-        genders = self.raw_data["Gender"].squeeze()
-        ages = self.raw_data["AgeAtTimeOfStudy"].squeeze()
         ch_pos = self.raw_data["ChannelPosition"].squeeze()
+        if "Gender" in self.raw_data.keys():
+            genders = self.raw_data["Gender"].squeeze()
+        else:
+            genders = [[np.nan]] * len(pat_ids)
+        if "AgeAtTimeOfStudy" in self.raw_data.keys():
+            ages = self.raw_data["AgeAtTimeOfStudy"].squeeze()
+        else:
+            ages = [np.nan] * len(pat_ids)
         regions_map = {
             i + 1: r[0][0] for i, r in enumerate(self.raw_data["RegionName"])
         }
@@ -71,9 +79,35 @@ class Load:
 
         return self.df_info
 
+    def load_raw_stage(self, stage: str):
+
+        # Load info if not present
+        if self.df_info is None:
+            self.get_info()
+        sfreq = self.raw_data["SamplingFrequency"][0][0]
+        assert stage in [
+            "W",
+            "N2",
+            "N3",
+            "R",
+        ], "Invalid stage! Stage can be W, N2, N3, or R."
+        data_stage = self.raw_data["Data_" + stage].T
+
+        # Loop through patients to extract epochs
+        pats = self.df_info["pat"].unique().tolist()
+        for pat in tqdm(pats, total=len(pats)):
+            df_info_pat = self.df_info[self.df_info["pat"] == pat]
+            chans_pat = df_info_pat["chan"].to_list()
+            # Raw MNE object
+            data_stage_pat = data_stage[df_info_pat.index]
+            raw_stage_pat = create_RawMNE(data_stage_pat, chans_pat, sfreq)
+            self.raws[pat] = raw_stage_pat
+
+        return self.raws
+
     def load_epo_stage(
         self,
-        stage,
+        stage: str,
         epo_dur=1.0,
         epo_overlap=0.5,
         filt=False,
