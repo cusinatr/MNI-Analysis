@@ -3,7 +3,9 @@ from datetime import datetime
 import pandas as pd
 from mnitimescales import Load, ComputeSW, Parcel
 import warnings
+
 warnings.filterwarnings("ignore", category=RuntimeWarning)  # suppress yasa's warnings
+pd.options.mode.chained_assignment = None  # suppress pandas' warnings
 
 
 class PipeSW:
@@ -110,6 +112,7 @@ class PipeSW:
                 center_sws=center_sws,
                 t_epo_sws=t_epo_sws,
             )
+
             df_density_stages.append(df_density)
 
             # 3) Parcellate results

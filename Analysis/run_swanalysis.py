@@ -6,7 +6,7 @@ from mnitimescales import PipeSW
 ###
 
 # Output folder
-out_dir = "test_sw_pipe"
+out_dir = "sw_analysis"
 
 # Filter frequencies
 sw_freqs = (0.5, 4)  # Hz
