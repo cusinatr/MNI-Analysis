@@ -145,7 +145,9 @@ class ComputeSW:
                 self.stage,
                 columns_res=["total", "local", "global"],
             )
-            df_density_pat[["total", "local", "global"]] = sw_density_pat.copy()
+            df_density_pat[["total", "local", "global"]] = sw_density_pat.loc[
+                df_density_pat["chan"]
+            ].to_numpy()
             df_density.append(df_density_pat)
 
             # Save results

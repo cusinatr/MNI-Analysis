@@ -367,7 +367,7 @@ def sw_density(
 
     # for stage in stages:
     tps_good = np.where(hypnogram != -1)[0].shape[0]
-    minutes_good = tps_good / sfreq / 60
+    minutes_good = tps_good / sfreq / 60.
 
     for ch in ch_names:
         ch_sws = sw_events[sw_events.Channel == ch]
