@@ -142,13 +142,19 @@ def compute_weighted_average(df_feature, df_W, w_thresh=0.5, axis=0, method="wei
 
     if method == "weighted":
         # method 1: weighted average of all parcels
-        return (df_feature * df_W).sum(axis=axis) / df_W.sum(axis=axis)
+        return (df_feature * df_W).sum(axis=axis) / np.where(
+            df_W.sum(axis=axis) == 0,
+            float_info.min,
+            df_W.sum(axis=axis),
+        )
 
     elif method == "thresh_weighted":
         # method 2: weighted average of suprathreshold parcels
         thresh_mat = df_W >= w_thresh
-        return (df_feature * df_W)[thresh_mat].sum(axis=axis) / df_W[thresh_mat].sum(
-            axis=axis
+        return (df_feature * df_W)[thresh_mat].sum(axis=axis) / np.where(
+            df_W[thresh_mat].sum(axis=axis) == 0,
+            float_info.min,
+            df_W[thresh_mat].sum(axis=axis),
         )
 
     elif method == "thresh_mean":
