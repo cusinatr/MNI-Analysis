@@ -15,7 +15,7 @@ class ComputeSW:
         stage: str,
         results_path: Path,
         sw_freqs=[0.5, 4],
-        gamma_freqs=[30, 80],
+        gamma_freqs=[40, 80],
     ):
 
         self.df_info = df_info
@@ -65,14 +65,6 @@ class ComputeSW:
             t_epoch_sws=self.t_epo_sws,
         )
 
-        # Compte SW density
-        sw_density = utils_sw.sw_density(
-            sw_events,
-            hypno,
-            raw_sw.info["ch_names"],
-            raw_sw.info["sfreq"],
-        )
-
         # Compute SW overlap
         sw_overlap = utils_sw.sw_conn(sw_events)
         # Theshold of "involvement" between local and global SWs
@@ -85,6 +77,14 @@ class ComputeSW:
             dtype=int
         )
         sw_events.insert(11, "Global", sw_glo_bool)
+
+        # Compte SW density
+        sw_density = utils_sw.sw_density(
+            sw_events,
+            hypno,
+            raw_sw.info["ch_names"],
+            raw_sw.info["sfreq"],
+        )
 
         # Plot results
         plots_sw.plot_sw_gamma(
@@ -107,7 +107,7 @@ class ComputeSW:
 
     def detect_sw(
         self,
-        dur_threshold=(0.8, 2),
+        dur_threshold=(0.5, 2),
         dur_neg=(0.25, 1.0),
         dur_pos=(0.25, 1.0),
         amp_percentile=25,
@@ -123,18 +123,31 @@ class ComputeSW:
         self.t_epo_sws = t_epo_sws
 
         pats = self.df_info["pat"].unique().tolist()
+        df_density = []
+
         for pat in pats:
             print("Patient: ", pat)
             self.pat_path = self.sw_path.joinpath(pat)
             self.pat_path.mkdir(exist_ok=True)
+            df_info_pat = self.df_info[self.df_info["pat"] == pat]
 
             # Check raw is available
             if self.raws[pat] is None:
                 continue
             sw_events_pat, sw_density_pat, sw_overlap_pat = self._detect_sw_pat(pat)
+            df_density_pat = create_res_df(
+                df_info_pat, self.raws[pat].ch_names, self.stage, columns_res=["total", "local", "global"]
+            )
+            df_density_pat[["total", "local", "global"]] = sw_density_pat.copy()
+            df_density.append(df_density_pat)
 
             # Save results
-            sw_events_pat.to_csv(self.pat_path.joinpath("SW_events.csv"))
-            sw_density_pat.to_csv(self.pat_path.joinpath("SW_density.csv"))
-            with open(self.pat_path.joinpath("SW_overlap.pkl"), "wb") as f:
+            sw_events_pat.to_csv(self.pat_path.joinpath(f"sw_events_{self.stage}.csv"))
+            sw_density_pat.to_csv(self.pat_path.joinpath(f"sw_density_{self.stage}.csv"))
+            with open(self.pat_path.joinpath(f"sw_overlap__{self.stage}.pkl"), "wb") as f:
                 pickle.dump(sw_overlap_pat, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+        # Concatenate results
+        df_density = pd.concat(df_density, ignore_index=True)
+
+        return df_density

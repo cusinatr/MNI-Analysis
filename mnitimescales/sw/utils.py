@@ -362,7 +362,7 @@ def detect_sws_gamma(
 def sw_density(
     sw_events: pd.DataFrame, hypnogram: np.ndarray, ch_names: np.ndarray, sfreq: float
 ) -> pd.DataFrame:
-    """Get slow waves density per stage and per channel.
+    """Get slow waves density per channel.
 
     Args:
         sw_events (pd.DataFrame): dataframe with every detected slow wave.
@@ -371,22 +371,21 @@ def sw_density(
         sfreq (float): sampling frequency of hypnogram.
 
     Returns:
-        pd.DataFrame: SWs density per stage and per channel.
+        pd.DataFrame: SWs density per channel.
     """
 
-    # Get stages from sw_events
-    stages = sw_events.Stage.unique()
+    # Create dataframe for sw density
+    sw_density = pd.DataFrame(index=ch_names, columns=["total", "local", "global"])
 
-    # Create container for sw density
-    sw_density = pd.DataFrame(index=ch_names, columns=stages)
+    # for stage in stages:
+    tps_good = np.where(hypnogram != -1)[0].shape[0]
+    minutes_good = tps_good / sfreq / 60
 
-    for stage in stages:
-        tps_in_stages = np.where(hypnogram == stage)[0].shape[0]
-        minutes_in_stage = tps_in_stages / sfreq / 60
-
-        for ch in ch_names:
-            ch_sws = sw_events[(sw_events.Channel == ch) & (sw_events.Stage == stage)]
-            sw_density.loc[ch, stage] = len(ch_sws) / minutes_in_stage
+    for ch in ch_names:
+        ch_sws = sw_events[sw_events.Channel == ch]
+        sw_density.loc[ch, "total"] = len(ch_sws) / minutes_good
+        sw_density.loc[ch, "local"] = len(ch_sws[ch_sws.Global == 0]) / minutes_good
+        sw_density.loc[ch, "global"] = len(ch_sws[ch_sws.Global == 1]) / minutes_good
 
     return sw_density
 
