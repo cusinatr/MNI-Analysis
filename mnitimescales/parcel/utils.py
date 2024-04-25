@@ -6,6 +6,7 @@ functionally dynamic and shaped by cortical microarchitecture. eLife, 9, e61277.
 """
 
 from pathlib import Path
+from sys import float_info
 import pandas as pd
 import numpy as np
 import mne
@@ -72,7 +73,7 @@ def compute_parc_metric(
     output_grid: np.ndarray,
     affine_transf: np.ndarray,
     d: float,
-    feature_name="tau",
+    feature_name: str,
 ):
     """Compute averaged metric for each parcel.
 
@@ -81,7 +82,7 @@ def compute_parc_metric(
         output_grid (np.ndarray): matrix of non-zero voxels in the parcellation
         affine_transf (np.ndarray): affine transformation matrix
         d (float): distance in mm for Gaussian weighting (FWHM)
-        feature_name (str, optional): feature name in the dataframe. Defaults to "tau".
+        feature_name (str): feature name in the dataframe.
     """
 
     # Smoothing parameter: Gaussian is at 50% when d voxels away
@@ -115,7 +116,8 @@ def compute_parc_metric(
         # Get total and max weights to drop bad coverage points
         W_max.append(np.max(W_mat, axis=0))
         feat_weighted.append(
-            np.dot(df_patient[feature_name].values, W_mat) / W_mat.sum(axis=0)
+            np.dot(df_patient[feature_name].values, W_mat)
+            / np.where(W_mat.sum(axis=0) == 0, float_info.min, W_mat.sum(axis=0))
         )
 
     return feat_weighted, W_max
