@@ -4,7 +4,6 @@ import pandas as pd
 from scipy.stats import zscore
 import matplotlib.pyplot as plt
 import seaborn as sns
-from .utils import compute_sw_global_threshold
 
 
 def _align_yaxis(ax1, ax2):
@@ -112,8 +111,8 @@ def plot_sw_gamma(
     show=False,
     save=True,
     save_path="",
-    save_name="SW_gamma",
-    save_format="pdf",
+    save_name="sw_gamma",
+    save_format="png",
 ):
     """Plot SW-gamma averages for each channel, grand average and region average.
 
@@ -193,8 +192,8 @@ def plot_sw_gamma(
     )
 
     if save:
-        savepath = Path(save_path).joinpath(save_name + "_grand_avg." + save_format)
-        fig.savefig(savepath, bbox_inches="tight", format=save_format)
+        savepath = Path(save_path).joinpath(f"{save_name}_grand_avg.{save_format}")
+        fig.savefig(savepath, bbox_inches="tight", format=save_format, dpi=300)
     if show:
         plt.show()
 
@@ -286,8 +285,8 @@ def plot_sw_loc_glo(
     show=False,
     save=True,
     save_path="",
-    save_name="SW_loc_glo",
-    save_format="pdf",
+    save_name="sw_loc_glo",
+    save_format="png",
 ):
     """Plot average loca / global SWs for each channel.
 
@@ -344,8 +343,8 @@ def plot_sw_loc_glo(
             idx_ch += 1
 
     if save:
-        savepath = Path(save_path).joinpath(save_name + "_grid." + save_format)
-        fig.savefig(savepath, bbox_inches="tight", format=save_format)
+        savepath = Path(save_path).joinpath(f"{save_name}_grid.{save_format}")
+        fig.savefig(savepath, bbox_inches="tight", format=save_format, dpi=300)
     if show:
         plt.show()
 
@@ -357,8 +356,8 @@ def plot_sw_overlap(
     show=False,
     save=True,
     save_path="",
-    save_name="SW",
-    save_format="pdf",
+    save_name="sw_overlap",
+    save_format="png",
 ):
     """Plot overlap and delay matrices for SWs (ch x ch).
 
@@ -383,8 +382,8 @@ def plot_sw_overlap(
     sns.heatmap(sw_overlap_prop, annot=True, fmt=".1f", ax=ax)
 
     if save:
-        savepath = Path(save_path).joinpath(save_name + "_overlap." + save_format)
-        fig.savefig(savepath, bbox_inches="tight", format=save_format)
+        savepath = Path(save_path).joinpath(f"{save_name}.{save_format}")
+        fig.savefig(savepath, bbox_inches="tight", format=save_format, dpi=300)
 
     if show:
         plt.show()

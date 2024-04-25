@@ -1,7 +1,8 @@
 from pathlib import Path
 import pandas as pd
 from ieeganalysis import ACF, TAU
-from .utils import create_pat_folder, create_res_df
+from mnitimescales.utils import create_res_df
+from .utils import create_pat_folder
 
 
 class FitACF:

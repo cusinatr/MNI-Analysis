@@ -202,20 +202,8 @@ def _detect_sws(
             sw_events_ch = sw_events[sw_events.Channel == ch].copy()
             # Thresholds based on PTP amplitude
             ptp_thre = np.percentile(sw_events_ch.PTP, 100 - amp_percentile)
-            # ptp_max = np.percentile(
-            #     sw_events_ch.PTP, 99
-            # )  # potential non-physiological events
-            # Thresholds based on negative amplitude
-            neg_thre = np.percentile(sw_events_ch.ValNegPeak, amp_percentile)
-            neg_min = np.percentile(
-                sw_events_ch.ValNegPeak, 1
-            )  # potential non-physiological events
             sw_events_ch = sw_events_ch[
-                sw_events_ch.PTP
-                >= ptp_thre
-                # & (sw_events_ch.PTP < ptp_max)
-                # (sw_events_ch.ValNegPeak <= neg_thre)
-                # & (sw_events_ch.ValNegPeak > neg_min)
+                sw_events_ch.PTP >= ptp_thre
             ]
             sw_events_thres.append(sw_events_ch)
         # Concatenate back every channel
@@ -408,7 +396,6 @@ def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.3):
 
     # Dict for results
     sw_overlap = {}
-    # sw_delays = {}
 
     # Loop over channels as "seeds"
     for ch_seed in tqdm(chs_sws):
@@ -416,11 +403,8 @@ def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.3):
         sws_ch_seed = sw_events[sw_events.Channel == ch_seed]
         # Matrix for channel results
         sw_overlap_ch = np.zeros((len(sws_ch_seed), len(chs_sws)))
-        # sw_delays_ch = np.full_like(sw_overlap_ch, np.nan)
         # SWs times
         t_peak_seed = sws_ch_seed.NegPeak.to_numpy()
-        # t_start = sws_ch_seed.Start.to_numpy().reshape(-1, 1)
-        # t_end = sws_ch_seed.End.to_numpy().reshape(-1, 1)
         t_start = t_peak_seed - sw_window
         t_end = t_peak_seed + sw_window
 
@@ -442,22 +426,12 @@ def sw_conn(sw_events: pd.DataFrame, chs_good=None, sw_window=0.3):
             sw_overlap_seed_targ[sw_overlap_seed_targ > 1] = 0
             sw_overlap_ch[:, i] = sw_overlap_seed_targ
 
-            # # Compute delay times
-            # # t_peak_targ = sws_ch_targ.NegPeak.to_numpy()
-            # idx_seed_delays = np.where(sw_overlap_seed_targ == 1)[0]
-            # idx_target_delays = np.where(mask_overlap[idx_seed_delays] == 1)[1]
-            # delays = t_peak_seed[idx_seed_delays] - t_target[idx_target_delays]
-            # sw_delays_ch[idx_seed_delays, i] = delays
-
         # Store results for seed channel
         sw_overlap_ch = pd.DataFrame(sw_overlap_ch, columns=chs_sws)
         sw_overlap_ch.drop(columns=ch_seed, inplace=True)
         sw_overlap[ch_seed] = sw_overlap_ch
-        # sw_delays_ch = pd.DataFrame(sw_delays_ch, columns=chs_sws)
-        # sw_delays_ch.drop(columns=ch_seed, inplace=True)
-        # sw_delays[ch_seed] = sw_delays_ch
 
-    return sw_overlap  # , sw_delays
+    return sw_overlap
 
 
 def compute_sw_global_threshold(sw_overlap: dict) -> float:
@@ -479,125 +453,3 @@ def compute_sw_global_threshold(sw_overlap: dict) -> float:
     }
 
     return glo_thre, sw_glo_bool
-
-
-# def format_sw_density_timecourse(
-#     df_labels: pd.DataFrame,
-#     df_bip: pd.DataFrame,
-#     sw_events: pd.DataFrame,
-#     sw_overlap: dict,
-#     hypnogram: np.ndarray,
-#     sfreq: float,
-#     block_dur=30,
-#     overlap_dur=15,
-# ) -> pd.DataFrame:
-#     """Format dataframe with SWs density .
-
-#     Args:
-#         df_labels (pd.DataFrame): labels and coordinates for each electrode.
-#         df_bip (pd.DataFrame): bad electrodes for bipolar.
-#         sw_events (pd.DataFrame): dataframe with every detected slow wave.
-#         sw_overlap (dict): dict with overlap of SWs between channels.
-#         hypnogram (np.ndarray): Array with sleep stages.
-#         sfreq (float): sampling frequency of hypnogram.
-#         block_dur (int, optional): length of block in seconds. Defaults to 30.
-#         overlap_dur (int, optional): overlap between blocks in seconds. Defaults to 15.
-
-#     Returns:
-#         pd.DataFrame: dataframe with metric for each sleep stage.
-#     """
-
-#     # Define times of blocks (middle point)
-#     times = np.arange(0, hypnogram.shape[0] / sfreq, block_dur - overlap_dur)
-
-#     # Lists for building dataframe
-#     times_df = []
-#     chans = []
-#     region = []
-#     sw_density = []
-#     sw_density_loc = []
-#     sw_density_glo = []
-
-#     # Get good channels
-#     good_chans = [el for el in df_bip.index if el not in get_bad_channels(df_bip)]
-#     lab_chans = [
-#         convert_label(
-#             lookup_bip_region(el, df_labels)[0],
-#             lookup_bip_region(el, df_labels)[1],
-#         )
-#         for el in good_chans
-#     ]
-#     # Keep only good labels
-#     lab_chans = {ch: lab for ch, lab in zip(good_chans, lab_chans) if lab != "NA"}
-#     good_chans = list(lab_chans.keys())
-
-#     # Calculate threshold for local / global SWs
-#     glo_thre = _compute_sw_global_threshold(sw_overlap)
-
-#     # Stages of SWs
-#     Stages = sw_events.Stage.unique()
-
-#     # Loop over time
-#     for i, t in tqdm(enumerate(times), total=len(times)):
-#         # Get SWs in block
-#         sws_block = sw_events[
-#             (sw_events.Channel.isin(good_chans))
-#             & (sw_events.Start >= t)
-#             & (sw_events.Start < t + block_dur)
-#         ]
-
-#         # Compute amout of "good" times
-#         idx_good = np.where(
-#             np.isin(hypnogram[int(t * sfreq) : int((t + block_dur) * sfreq)], Stages)
-#         )[0]
-#         s_good = len(idx_good) / sfreq  # in seconds
-
-#         # Check is any SW was detected
-#         if s_good == 0:
-#             sw_density.extend([0] * len(good_chans))
-#             sw_density_loc.extend([0] * len(good_chans))
-#             sw_density_glo.extend([0] * len(good_chans))
-
-#         elif len(sws_block) == 0:
-#             sw_density.extend([0] * len(good_chans))
-#             sw_density_loc.extend([0] * len(good_chans))
-#             sw_density_glo.extend([0] * len(good_chans))
-
-#         else:
-#             # Loop over channels
-#             for ch in good_chans:
-#                 sws_ch = sw_events[sw_events.Channel == ch]
-#                 # Get indexes of channel SWs in epoch
-#                 idx_ch = np.where((sws_ch.Start >= t) & (sws_ch.Start < t + block_dur))[
-#                     0
-#                 ]
-#                 # Total density per minute
-#                 sw_density.append(len(idx_ch) / s_good * 60)
-#                 # Get densities of local/global SWs
-#                 n_loc = (sw_overlap[ch].iloc[idx_ch].mean(axis=1) < glo_thre).sum()
-#                 n_glo = len(idx_ch) - n_loc
-#                 sw_density_loc.append(n_loc / s_good * 60)
-#                 sw_density_glo.append(n_glo / s_good * 60)
-
-#         # Append info
-#         times_df.extend([t + block_dur / 2] * len(good_chans))
-#         chans.extend(good_chans)
-#         region.extend([lab_chans[ch] for ch in good_chans])
-
-#     df_density = pd.DataFrame(
-#         np.c_[times_df, chans, region, sw_density, sw_density_loc, sw_density_glo],
-#         columns=[
-#             "time",
-#             "chan",
-#             "region",
-#             "SW_density",
-#             "SW_density_loc",
-#             "SW_density_glo",
-#         ],
-#     )
-#     # Convert to numeric
-#     df_density[["time", "SW_density", "SW_density_loc", "SW_density_glo"]] = df_density[
-#         ["time", "SW_density", "SW_density_loc", "SW_density_glo"]
-#     ].apply(pd.to_numeric, errors="coerce")
-
-#     return df_density

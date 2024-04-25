@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from . import utils as utils_sw
 from . import plots as plots_sw
+from mnitimescales.utils import create_res_df
 
 
 class ComputeSW:
@@ -15,7 +16,7 @@ class ComputeSW:
         stage: str,
         results_path: Path,
         sw_freqs=[0.5, 4],
-        gamma_freqs=[40, 80],
+        gamma_freqs=[30, 80],
     ):
 
         self.df_info = df_info
@@ -39,9 +40,9 @@ class ComputeSW:
         raw_ds = utils_sw.downsample_raw(raw)
         hypno = utils_sw.load_hypnogram(raw_ds, self.stage)
         # Low frequency raw
-        raw_sw = raw_ds.copy().filter(*self.sw_freqs)
+        raw_sw = raw_ds.copy().filter(*self.sw_freqs, verbose=False)
         # Gamma power raw
-        raw_gamma = raw.copy().filter(*self.gamma_freqs)
+        raw_gamma = raw.copy().filter(*self.gamma_freqs, verbose=False)
         raw_gamma = raw_gamma.apply_hilbert(envelope=True)
         raw_gamma._data = 2 * np.log10(raw_gamma._data)  # get log power
 
@@ -74,7 +75,7 @@ class ComputeSW:
         # Add column in events dataframe
         sw_glo_bool = np.concatenate(
             list({ch: sw_glo_bool[ch] for ch in sw_events.Channel.unique()}.values()),
-            dtype=int
+            dtype=int,
         )
         sw_events.insert(11, "Global", sw_glo_bool)
 
@@ -92,7 +93,7 @@ class ComputeSW:
             epo_gamma,
             t_epoch_sws=self.t_epo_sws,
             save_path=self.pat_path,
-            save_name="SWA_gamma",
+            save_name=f"sw_gamma_{self.stage}",
         )
         plots_sw.plot_sw_loc_glo(
             epo_swa,
@@ -100,16 +101,19 @@ class ComputeSW:
             loc_glo_threshold,
             self.t_epo_sws,
             save_path=self.pat_path,
+            save_name=f"sw_loc_glo_{self.stage}",
         )
-        plots_sw.plot_sw_overlap(sw_overlap, save_path=self.pat_path)
+        plots_sw.plot_sw_overlap(
+            sw_overlap, save_path=self.pat_path, save_name=f"sw_overlap_{self.stage}"
+        )
 
         return sw_events, sw_density, sw_overlap
 
     def detect_sw(
         self,
         dur_threshold=(0.5, 2),
-        dur_neg=(0.25, 1.0),
-        dur_pos=(0.25, 1.0),
+        dur_neg=(0.1, 2),
+        dur_pos=(0.1, 2),
         amp_percentile=25,
         center_sws="NegPeak",
         t_epo_sws=2,
@@ -136,15 +140,22 @@ class ComputeSW:
                 continue
             sw_events_pat, sw_density_pat, sw_overlap_pat = self._detect_sw_pat(pat)
             df_density_pat = create_res_df(
-                df_info_pat, self.raws[pat].ch_names, self.stage, columns_res=["total", "local", "global"]
+                df_info_pat,
+                self.raws[pat].ch_names,
+                self.stage,
+                columns_res=["total", "local", "global"],
             )
             df_density_pat[["total", "local", "global"]] = sw_density_pat.copy()
             df_density.append(df_density_pat)
 
             # Save results
             sw_events_pat.to_csv(self.pat_path.joinpath(f"sw_events_{self.stage}.csv"))
-            sw_density_pat.to_csv(self.pat_path.joinpath(f"sw_density_{self.stage}.csv"))
-            with open(self.pat_path.joinpath(f"sw_overlap__{self.stage}.pkl"), "wb") as f:
+            sw_density_pat.to_csv(
+                self.pat_path.joinpath(f"sw_density_{self.stage}.csv")
+            )
+            with open(
+                self.pat_path.joinpath(f"sw_overlap_{self.stage}.pkl"), "wb"
+            ) as f:
                 pickle.dump(sw_overlap_pat, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         # Concatenate results

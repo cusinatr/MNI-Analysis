@@ -2,6 +2,8 @@ from pathlib import Path
 from datetime import datetime
 import pandas as pd
 from mnitimescales import Load, ComputeSW, Parcel
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)  # suppress yasa's warnings
 
 
 class PipeSW:

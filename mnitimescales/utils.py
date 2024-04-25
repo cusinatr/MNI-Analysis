@@ -1,17 +1,12 @@
 from pathlib import Path
 import warnings
-from tqdm import tqdm
 from copy import deepcopy
 import pandas as pd
 import numpy as np
 from scipy import signal
 from scipy import optimize, spatial
 from scipy.stats import pearsonr, spearmanr, bootstrap, zscore
-from yasa import sw_detect
 from pybispectra import compute_fft, TDE
-import mne
-import nibabel as nib
-import statistics
 import statsmodels.formula.api as smf
 from sklearn.utils.validation import check_random_state
 
@@ -20,6 +15,55 @@ from sklearn.utils.validation import check_random_state
 # General functions
 ###
 
+
+def create_res_df(
+    df_info_pat: pd.DataFrame,
+    chs_good: list,
+    stage: str,
+    columns_res=[],
+):
+    """Create a dataframe for results of a patient.
+
+    Args:
+        df_info_pat (pd.DataFrame): metadata about patient channels.
+        pat_id (str): ID for patient.
+        age (float): age of patient.
+        gender (str): gender of patient.
+        stage (str): sleep stage.
+        columns_res (list): column names to add for results.
+
+    Returns:
+        pd.DataFrame: dataframe with metadata for patient and empty results column(s).
+    """
+
+    df_res_pat = pd.DataFrame(
+        columns=[
+            "pat",
+            "age",
+            "gender",
+            "chan",
+            "type",
+            "stage",
+            "region",
+            "mni_x",
+            "mni_y",
+            "mni_z",
+        ]
+        + columns_res
+    )
+    df_info_pat_chs = df_info_pat[df_info_pat["chan"].isin(chs_good)]
+    df_res_pat["pat"] = df_info_pat_chs["pat"].to_list()
+    df_res_pat["age"] = df_info_pat_chs["age"].to_list()
+    df_res_pat["gender"] = df_info_pat_chs["gender"].to_list()
+    df_res_pat["chan"] = df_info_pat_chs["chan"].to_list()
+    df_res_pat["type"] = df_info_pat_chs["type"].to_list()
+    df_res_pat["stage"] = [stage] * len(df_info_pat_chs)
+    df_res_pat["region"] = df_info_pat_chs["region"].to_list()
+    df_res_pat["mni_x"] = df_info_pat_chs["mni_x"].to_list()
+    df_res_pat["mni_y"] = df_info_pat_chs["mni_y"].to_list()
+    df_res_pat["mni_z"] = df_info_pat_chs["mni_z"].to_list()
+
+    return df_res_pat
 
 def get_avg_tau_mni(data: pd.DataFrame, metric_name="tau", method="LME") -> pd.Series:
     """Get average timescale per parcel of the MNI atlas.
