@@ -160,9 +160,7 @@ def _detect_sws(
         amp_percentile (int, optional): higher % to use. Used if use_percentile is True. Defaults to 25.
 
     Returns:
-        SWRes: class of yasa's results.
         sw_events: dataframe of detected SWs.
-        filt_data: filtered data.
     """
 
     sfreq = data.info["sfreq"]
@@ -182,8 +180,7 @@ def _detect_sws(
         include=stages,
         verbose=False,
     )
-
-    filt_data = SWRes._data_filt
+    
     sw_events = SWRes._events
 
     # Select SWs within duration threshold
@@ -210,7 +207,7 @@ def _detect_sws(
         sw_events = pd.concat(sw_events_thres, ignore_index=True)
         SWRes._events = sw_events  # update events
 
-    return SWRes, sw_events, filt_data
+    return sw_events
 
 
 def detect_sws_gamma(
@@ -256,7 +253,7 @@ def detect_sws_gamma(
     ch_names = raw_swa.ch_names
 
     # Compute slow waves for all channels with original polarity
-    _, sw_events_orig, _ = _detect_sws(
+    sw_events_orig = _detect_sws(
         raw_swa,
         hypnogram,
         stages=stages,
@@ -311,7 +308,7 @@ def detect_sws_gamma(
     raw_swa_flip._data[chs_flip] *= -1
 
     # Compute slow waves for all channels with original polarity
-    _, sw_events, _ = _detect_sws(
+    sw_events = _detect_sws(
         raw_swa_flip,
         hypnogram,
         stages=stages,

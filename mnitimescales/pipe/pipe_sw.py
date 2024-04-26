@@ -115,13 +115,18 @@ class PipeSW:
 
             df_density_stages.append(df_density)
 
-            # 3) Parcellate results
+            # 3) Parcellate results & save
+            parc = Parcel(parc_path=self.parc_path)
+            print("Parcellating in MNI atlas...")
+            df_density_mni = parc.parcel_mni(df_density)
+            self._save_results(
+                df_density_mni,
+                self.results_path,
+                f"density_{stage}_mni",
+            )
             for cond in ["total", "local", "global"]:
-                parc = Parcel(parc_path=self.parc_path)
+                print(f"Parcellating in HCP-MMP atlas {cond} condition...")
                 df_density_mmp, df_density_mmp_macro = parc.parcel_mmp(df_density, cond)
-                df_density_mni = parc.parcel_mni(df_density)
-
-                # 4) Save parcellated results
                 self._save_results(
                     df_density_mmp,
                     self.results_path,
@@ -132,13 +137,8 @@ class PipeSW:
                     self.results_path,
                     f"density_{cond}_{stage}_mmp_macro",
                 )
-                self._save_results(
-                    df_density_mni,
-                    self.results_path,
-                    f"density_{cond}_{stage}_mni",
-                )
 
-        # 5) Save results across stages
+        # 4) Save results across stages
         df_density_stages = pd.concat(df_density_stages, ignore_index=True)
         self._save_results(
             df_density_stages,

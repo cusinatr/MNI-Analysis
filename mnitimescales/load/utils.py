@@ -29,7 +29,7 @@ def create_RawMNE(data: np.ndarray, chans: list, sfreq: int, return_all=False):
         idx_good = [i for i, ch in enumerate(chans) if ch in chans_good]
         idx_nan = [i for i, ch in enumerate(chans) if ch in chans_nan]
         info = mne.create_info(chans_good, sfreq, ch_types="seeg", verbose=False)
-        raw = mne.io.RawArray(data[idx_good], info, verbose=False)
+        raw = mne.io.RawArray(data[idx_good] / 1e6, info, verbose=False)  # convert to V
 
         # Detect flat time segments
         idx_flat = np.where(np.all(raw._data == 0, axis=0))[0]
