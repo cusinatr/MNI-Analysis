@@ -88,8 +88,7 @@ def _epoch_sws(sw_events, data_raw, ch_names, sfreq, center, t_around=2):
                 ]
             )
         ]
-        data_sws_ch = data_raw[i, idx_sws_ch].reshape(len(sw_events_ch), -1)
-        epo_sws_ch[ch] = data_sws_ch
+        epo_sws_ch[ch] = data_raw[i, idx_sws_ch].reshape(len(sw_events_ch), -1)
 
     return epo_sws_ch
 
@@ -180,7 +179,7 @@ def _detect_sws(
         include=stages,
         verbose=False,
     )
-    
+
     sw_events = SWRes._events
 
     # Select SWs within duration threshold
@@ -199,9 +198,7 @@ def _detect_sws(
             sw_events_ch = sw_events[sw_events.Channel == ch].copy()
             # Thresholds based on PTP amplitude
             ptp_thre = np.percentile(sw_events_ch.PTP, 100 - amp_percentile)
-            sw_events_ch = sw_events_ch[
-                sw_events_ch.PTP >= ptp_thre
-            ]
+            sw_events_ch = sw_events_ch[sw_events_ch.PTP >= ptp_thre]
             sw_events_thres.append(sw_events_ch)
         # Concatenate back every channel
         sw_events = pd.concat(sw_events_thres, ignore_index=True)
@@ -260,8 +257,8 @@ def detect_sws_gamma(
         freq_sw=(None, None),
         amp_ptp=amp_ptp,
         dur_threshold=dur_threshold,
-        dur_neg=dur_neg,
-        dur_pos=dur_pos,
+        dur_neg=(0.1, 2),  # dur_neg,
+        dur_pos=(0.1, 2),  # dur_pos,
         use_percentile=use_percentile,
         amp_percentile=amp_percentile,
     )
@@ -364,7 +361,7 @@ def sw_density(
 
     # for stage in stages:
     tps_good = np.where(hypnogram != -1)[0].shape[0]
-    minutes_good = tps_good / sfreq / 60.
+    minutes_good = tps_good / sfreq / 60.0
 
     for ch in ch_names:
         ch_sws = sw_events[sw_events.Channel == ch]

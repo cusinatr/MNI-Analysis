@@ -2,6 +2,7 @@ from pathlib import Path
 import pickle
 import pandas as pd
 import numpy as np
+import mne
 from . import utils as utils_sw
 from . import plots as plots_sw
 from mnitimescales.utils import create_res_df
@@ -52,7 +53,7 @@ class ComputeSW:
 
         raw_sw, raw_gamma, hypno = self._prepare_raw(self.raws[pat])
 
-        sw_events, _, epo_swa, epo_gamma = utils_sw.detect_sws_gamma(
+        sw_events, _, epo_sw, epo_gamma = utils_sw.detect_sws_gamma(
             raw_sw,
             raw_gamma,
             hypno,
@@ -89,14 +90,14 @@ class ComputeSW:
 
         # Plot results
         plots_sw.plot_sw_gamma(
-            epo_swa,
+            epo_sw,
             epo_gamma,
             t_epoch_sws=self.t_epo_sws,
             save_path=self.pat_path,
             save_name=f"sw_gamma_{self.stage}",
         )
         plots_sw.plot_sw_loc_glo(
-            epo_swa,
+            epo_sw,
             sw_overlap,
             loc_glo_threshold,
             self.t_epo_sws,
@@ -107,7 +108,7 @@ class ComputeSW:
             sw_overlap, save_path=self.pat_path, save_name=f"sw_overlap_{self.stage}"
         )
 
-        return sw_events, sw_density, sw_overlap
+        return sw_events, sw_density, sw_overlap, epo_sw, epo_gamma
 
     def detect_sw(
         self,
@@ -128,6 +129,8 @@ class ComputeSW:
 
         pats = self.df_info["pat"].unique().tolist()
         df_density = []
+        epochs_sw = {}
+        epochs_gamma = {}
 
         for pat in pats:
             print("Patient: ", pat)
@@ -138,7 +141,9 @@ class ComputeSW:
             # Check raw is available
             if self.raws[pat] is None:
                 continue
-            sw_events_pat, sw_density_pat, sw_overlap_pat = self._detect_sw_pat(pat)
+            sw_events_pat, sw_density_pat, sw_overlap_pat, epo_sw_pat, epo_gamma_pat = (
+                self._detect_sw_pat(pat)
+            )
             df_density_pat = create_res_df(
                 df_info_pat,
                 self.raws[pat].ch_names,
@@ -149,6 +154,10 @@ class ComputeSW:
                 df_density_pat["chan"]
             ].to_numpy()
             df_density.append(df_density_pat)
+
+            # Add epochs
+            epochs_sw[pat] = epo_sw_pat
+            epochs_gamma[pat] = epo_gamma_pat
 
             # Save results
             sw_events_pat.to_csv(self.pat_path.joinpath(f"sw_events_{self.stage}.csv"))
@@ -162,5 +171,13 @@ class ComputeSW:
 
         # Concatenate results
         df_density = pd.concat(df_density, ignore_index=True)
+
+        # Finally, save epochs
+        with open(self.results_path.joinpath(f"epochs_sw_{self.stage}.pkl"), "wb") as f:
+            pickle.dump(epochs_sw, f, protocol=pickle.HIGHEST_PROTOCOL)
+        with open(
+            self.results_path.joinpath(f"epochs_gamma_{self.stage}.pkl"), "wb"
+        ) as f:
+            pickle.dump(epochs_gamma, f, protocol=pickle.HIGHEST_PROTOCOL)
 
         return df_density

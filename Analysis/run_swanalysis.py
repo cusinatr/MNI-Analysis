@@ -1,3 +1,7 @@
+"""
+Convenience script for computing slow-waves.
+"""
+
 from pathlib import Path
 from mnitimescales import PipeSW
 
@@ -14,8 +18,8 @@ gamma_freqs = (30, 80)  # Hz
 
 # Threshold for slow-waves duration
 dur_threshold = (0.5, 2)  # s
-dur_neg = (0.1, 2)  # s
-dur_pos = (0.1, 2)  # s
+dur_neg = (0.25, 1)  # s
+dur_pos = (0.25, 1)  # s
 
 # Biggest n% amplitudes
 amp_percentile = 25
