@@ -79,7 +79,12 @@ class Load:
 
         return self.df_info
 
-    def load_raw_stage(self, stage: str):
+    def load_raw_stage(
+        self,
+        stage: str,
+        filt=False,
+        filt_freqs=None,
+    ):
 
         # Load info if not present
         if self.df_info is None:
@@ -93,14 +98,20 @@ class Load:
         ], "Invalid stage! Stage can be W, N2, N3, or R."
         data_stage = self.raw_data["Data_" + stage].T
 
-        # Loop through patients to extract epochs
+        # Loop through patients to extract Raws
         pats = self.df_info["pat"].unique().tolist()
         for pat in tqdm(pats, total=len(pats)):
             df_info_pat = self.df_info[self.df_info["pat"] == pat]
             chans_pat = df_info_pat["chan"].to_list()
             # Raw MNE object
             data_stage_pat = data_stage[df_info_pat.index]
-            raw_stage_pat = create_RawMNE(data_stage_pat, chans_pat, sfreq)
+            raw_stage_pat = create_RawMNE(
+                data_stage_pat,
+                chans_pat,
+                sfreq,
+                freq_band=filt,
+                band_freqs=filt_freqs,
+            )
             self.raws[pat] = raw_stage_pat
 
         return self.raws
@@ -133,7 +144,13 @@ class Load:
             chans_pat = df_info_pat["chan"].to_list()
             # Raw MNE object
             data_stage_pat = data_stage[df_info_pat.index]
-            raw_stage_pat = create_RawMNE(data_stage_pat, chans_pat, sfreq)
+            raw_stage_pat = create_RawMNE(
+                data_stage_pat,
+                chans_pat,
+                sfreq,
+                freq_band=filt,
+                band_freqs=filt_freqs,
+            )
 
             # Get epochs
             if raw_stage_pat is None:
@@ -143,8 +160,6 @@ class Load:
                     raw_stage_pat,
                     epo_dur=epo_dur,
                     epo_overlap=epo_overlap,
-                    freq_band=filt,
-                    band_freqs=filt_freqs,
                 )
             # Append to dictionary
             self.epochs[pat] = epo_stage_pat

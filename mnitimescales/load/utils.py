@@ -6,7 +6,14 @@ import numpy as np
 import mne
 
 
-def create_RawMNE(data: np.ndarray, chans: list, sfreq: int, return_all=False):
+def create_RawMNE(
+    data: np.ndarray,
+    chans: list,
+    sfreq: int,
+    return_all=False,
+    freq_band=False,
+    band_freqs=[],
+):
     """Create MNE Raw object from array data.
 
     Args:
@@ -14,6 +21,8 @@ def create_RawMNE(data: np.ndarray, chans: list, sfreq: int, return_all=False):
         chans (list): chennel names
         sfreq (int): sampling frequency
         return_all (bool, optional): Whether to return also indices of channels. Defaults to False.
+        freq_band (bool): Whether to filter in a freq band and get the amplitude
+        band_freqs (list): Limits of the frequency band
 
     Returns:
         raw: mne.io.RawArray
@@ -49,6 +58,13 @@ def create_RawMNE(data: np.ndarray, chans: list, sfreq: int, return_all=False):
             )
             raw.set_annotations(flat_annot, verbose=False)
 
+        if freq_band:
+            # Get band amplitude
+            raw.filter(band_freqs[0], band_freqs[1], verbose=False)
+            raw.apply_hilbert(envelope=True)
+            # Apply log-transformation to make data more "normal"
+            raw._data = np.log(raw._data**2)
+
         if return_all:
             return raw, idx_good, idx_nan
         return raw
@@ -62,8 +78,6 @@ def create_epo(
     raw: mne.io.RawArray,
     epo_dur: float,
     epo_overlap: float,
-    freq_band=False,
-    band_freqs=[],
 ) -> mne.Epochs:
     """Create epochs from raw, additionally filtering in a band.
 
@@ -71,19 +85,10 @@ def create_epo(
         raw (mne.io.RawArray): Raw object
         epo_dur (float): Duration of epochs in seconds
         epo_overlap (float): Overlap of epochs in seconds
-        freq_band (bool): Whether to filter in a freq band and get the amplitude
-        band_freqs (list): Limits of the frequency band
 
     Returns:
         mne.Epochs: "surrogate" epochs
     """
-
-    if freq_band:
-        # Get band amplitude
-        raw.filter(band_freqs[0], band_freqs[1], verbose=False)
-        raw.apply_hilbert(envelope=True)
-        # Apply log-transformation to make data more "normal"
-        raw._data = np.log(raw._data**2)
 
     # Create epochs to discard flat segments
     epo = mne.make_fixed_length_epochs(
