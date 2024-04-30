@@ -144,10 +144,3 @@ class PipeTCSW:
                     f"timescales_sw_{cond}_{stage}_mmp_macro",
                 )
 
-        # # 4) Save results across stages
-        # df_timescales_sw_stages = pd.concat(df_timescales_sw_stages, ignore_index=True)
-        # self._save_results(
-        #     df_timescales_sw_stages,
-        #     self.results_path,
-        #     "density_stages",
-        # )

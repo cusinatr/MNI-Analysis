@@ -56,7 +56,7 @@ class FitAcfSw:
 
         for t_start in np.arange(-self.epo_sws, self.epo_sws, self.epo_overlap):
             t_end = t_start + self.epo_dur
-            if t_end >= self.epo_sws:
+            if t_end > self.epo_sws:
                 continue
             epo_chan_sw = epo_chan[:, (t_epo > t_start) & (t_epo <= t_end)]
             epo_chan_sw = mne.EpochsArray(
