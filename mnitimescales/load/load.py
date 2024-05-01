@@ -85,6 +85,8 @@ class Load:
         filt=False,
         filt_freqs=None,
     ):
+        
+        self.raws = {}
 
         # Load info if not present
         if self.df_info is None:
@@ -124,6 +126,9 @@ class Load:
         filt=False,
         filt_freqs=None,
     ):
+        
+
+        self.epochs = {}
 
         # Load info if not present
         if self.df_info is None:

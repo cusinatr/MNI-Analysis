@@ -21,15 +21,15 @@ class FitACF:
         df_info: pd.DataFrame,
         epochs: dict,
         stage: str,
-        results_path: str,
-        config_path: str,
+        results_path: Path,
+        config_path: Path,
     ):
 
         self.df_info = df_info
         self.epochs = epochs
         self.stage = stage
-        self.results_path = Path(results_path)
-        self.config_path = Path(config_path)
+        self.results_path = results_path
+        self.config_path = config_path
         # Parameters for analysis
         self.nlags = None
         self.tau_mode = None

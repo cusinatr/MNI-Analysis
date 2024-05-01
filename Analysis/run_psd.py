@@ -10,11 +10,14 @@ from mnitimescales import PipePSD
 # Analysis parameters
 ###
 
+# Matlab file to use
+mat_file = "MatlabFile.mat"  # "MatlabFile.mat", "NREM-sleep-20min.mat"
+
 # Stages to analyze
 stages = ["W", "N2", "N3", "R"]
 
 # Output folder
-out_dir = "test_psd_broadband"
+out_dir = "psd_gamma_exp"
 
 # Epochs duration
 epo_dur = 1  # s
@@ -26,15 +29,15 @@ filt_freqs = [0, 80]  # Hz
 
 # ACF fit parameters
 nlags = 100  # compute all lags
-fit_mode = "knee"  # fixed, knee
-fit_range = [1, 80]  # Hz
+fit_mode = "fixed"  # fixed, knee
+fit_range = [40, 80]  # Hz
 
 ###
 # Paths
 ###
 
 base_path = Path("F:\\MNIOpen")
-mat_path = base_path.joinpath("Data", "Raw", "MatlabFile.mat") # "NREM-sleep-20min.mat"
+mat_path = base_path.joinpath("Data", "Raw", mat_file)
 results_path = base_path.joinpath("Results", out_dir)
 config_path = Path(__file__).parent.joinpath("config_mni.yml")
 parc_path = base_path.joinpath("Data", "Parcellation")

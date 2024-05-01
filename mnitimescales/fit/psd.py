@@ -65,7 +65,7 @@ class FitPSD:
             tau_pat = np.array([np.nan] * len(fg_pat))
 
         return pd.DataFrame(
-            {"r2": r2_pat, "exp": exp_pat, "tau": tau_pat}, index=chans_pat
+            {"r2": r2_pat, "exp": exp_pat, "tau": tau_pat}, index=self.epochs[pat_id].ch_names
         )
 
     def compute_psd(

@@ -131,7 +131,7 @@ class PipePSD:
                 f"exp_{stage}_mni",
             )
             # Save also timescale if fit is knee
-            if self.fit_mode == "knee":
+            if fit_mode == "knee":
                 df_tau_mmp, df_tau_mmp_macro = parc.parcel_mmp(df_psd, "tau")
                 self._save_results(
                     df_tau_mmp,

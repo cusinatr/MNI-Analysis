@@ -6,7 +6,6 @@ import numpy as np
 from scipy import signal
 from scipy import optimize, spatial
 from scipy.stats import pearsonr, spearmanr, bootstrap, zscore
-from pybispectra import compute_fft, TDE
 import statsmodels.formula.api as smf
 from sklearn.utils.validation import check_random_state
 
