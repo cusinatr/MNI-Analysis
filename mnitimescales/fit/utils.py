@@ -1,5 +1,6 @@
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 
 def create_pat_folder(pat_id: str, res_path: Path, chans: list):
@@ -27,3 +28,15 @@ def create_pat_folder(pat_id: str, res_path: Path, chans: list):
     df_meta_pat.to_csv(pat_path.joinpath(pat_id + "_meta.csv"))
 
     return None
+
+
+def convert_knee_tau(el_data: pd.Series) -> float:
+    """Get timescale from knee fit, in milliseconds."""
+    # Get knee and exponent
+    knee = el_data["knee"]
+    exp = el_data["exp"]
+
+    # Knee frequency
+    knee_freq = knee ** (1 / exp)
+
+    return 1000 / (2 * np.pi * knee_freq)  # 1000 to convert to ms
