@@ -86,7 +86,7 @@ class SC:
                 upper_bounds = (100, np.inf, np.inf)
             else:
                 upper_bounds = (100, 1, 1)
-            df_sc_fit = utils.exp_sc(df_sc, col_name, fit_type, upper_bounds)
+            df_sc_fit = utils.fit_sc_dist(df_sc, col_name, fit_type, upper_bounds)
         elif fit_mode == "median":
             df_sc_fit = utils.median_sc(df_sc, col_name)
         elif fit_mode == "auc":

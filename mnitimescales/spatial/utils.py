@@ -13,9 +13,11 @@ def _check_hemi(mni_x: float):
 
 def _get_mni(df_info: pd.DataFrame, chan: str):
 
-    return df_info.loc[df_info["chan"] == chan, ["mni_x", "mni_y", "mni_z"]].to_numpy(
-        dtype=float
-    ).squeeze()
+    return (
+        df_info.loc[df_info["chan"] == chan, ["mni_x", "mni_y", "mni_z"]]
+        .to_numpy(dtype=float)
+        .squeeze()
+    )
 
 
 def _compute_cc(data_ch1: np.ndarray, data_ch2: np.ndarray):
@@ -227,7 +229,12 @@ def _lin_curve(x, a):
 
 
 def _fit_sc(
-    df_sc: pd.DataFrame, fit_type: str, y_name: str, x_name="dist", n_min=20, upper_bounds=(100, 1, 1)
+    df_sc: pd.DataFrame,
+    fit_type: str,
+    y_name: str,
+    x_name="dist",
+    n_min=20,
+    upper_bounds=(100, 1, 1),
 ):
 
     x = df_sc[x_name].to_numpy(dtype=float)
@@ -245,7 +252,7 @@ def _fit_sc(
         popt, pcov = optimize.curve_fit(
             fit_func,
             x,
-            y,
+            np.abs(y),
             bounds=(lower_bounds, upper_bounds),
         )
     except RuntimeError:
@@ -255,23 +262,26 @@ def _fit_sc(
     return popt, pcov
 
 
-def exp_sc(
+def fit_sc_dist(
     df_sc: pd.DataFrame, col_name: str, fit_type: str, upper_bounds: tuple
 ) -> pd.DataFrame:
 
+    if fit_type == "exp":
+        col_names = ["k", "a", "b"]
+    elif fit_type == "lin":
+        col_names = ["a"]
+
     # First, fit all regions
     popt, _ = _fit_sc(df_sc, fit_type, col_name, upper_bounds=upper_bounds)
-    df_params_all = pd.DataFrame(
-        popt.reshape(1, -1), columns=["k", "a", "b"], index=["all"]
-    )
+    df_params_all = pd.DataFrame(popt.reshape(1, -1), columns=col_names, index=["all"])
 
     # Then, one fit per MNI region
     df_params_regs = []
     for reg in df_sc["region_1"].unique():
         df_sc_reg = df_sc[(df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)]
-        popt, _ = _fit_sc(df_sc_reg, col_name, upper_bounds=upper_bounds)
+        popt, _ = _fit_sc(df_sc_reg, fit_type, col_name, upper_bounds=upper_bounds)
         df_params_regs.append(
-            pd.DataFrame(popt.reshape(1, -1), columns=["k", "a", "b"], index=[reg])
+            pd.DataFrame(popt.reshape(1, -1), columns=col_names, index=[reg])
         )
     df_params = pd.concat([df_params_all] + df_params_regs)
 
@@ -285,27 +295,27 @@ def median_sc(df_sc: pd.DataFrame, col_name: str) -> pd.DataFrame:
 
     df_params = pd.DataFrame(
         columns=["avg", "avg_low", "avg_high"],
-        index=["all"] + df_sc["region_1"].unique().to_list(),
+        index=["all"] + list(df_sc["region_1"].unique()),
     )
-    df_params.loc["all", "avg"] = df_sc[col_name].mean()
+    df_params.loc["all", "avg"] = df_sc[col_name].abs().mean()
     df_params.loc["all", "avg_low"] = df_sc[col_name][
         df_sc["dist"] <= dist_threshold
-    ].mean()
+    ].abs().mean()
     df_params.loc["all", "avg_high"] = df_sc[col_name][
         df_sc["dist"] > dist_threshold
-    ].mean()
+    ].abs().mean()
     for reg in df_params.index[1:]:
         df_params.loc[reg, "avg"] = df_sc[col_name][
             (df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)
-        ].mean()
+        ].abs().mean()
         df_params.loc[reg, "avg_low"] = df_sc[col_name][
             ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
             & (df_sc["dist"] <= dist_threshold)
-        ].mean()
+        ].abs().mean()
         df_params.loc[reg, "avg_high"] = df_sc[col_name][
             ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
             & (df_sc["dist"] > dist_threshold)
-        ].mean()
+        ].abs().mean()
 
     return df_params
 
@@ -314,13 +324,13 @@ def auc_sc(df_sc: pd.DataFrame, col_name: str) -> pd.DataFrame:
 
     df_params = pd.DataFrame(
         columns=["auc"],
-        index=["all"] + df_sc["region_1"].unique().to_list(),
+        index=["all"] + df_sc["region_1"].unique(),
     )
-    df_params.loc["all", "auc"] = integrate.simpson(y=df_sc[col_name], x=df_sc["dist"])
+    df_params.loc["all", "auc"] = integrate.simpson(y=df_sc[col_name].abs(), x=df_sc["dist"])
     for reg in df_params.index[1:]:
         df_sc_reg = df_sc[(df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)]
         df_params.loc[reg, "auc"] = integrate.simpson(
-            y=df_sc_reg[col_name], x=df_sc_reg["dist"]
+            y=df_sc_reg[col_name].abs(), x=df_sc_reg["dist"]
         )
 
     return df_params

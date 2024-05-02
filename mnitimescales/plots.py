@@ -11,6 +11,7 @@ import plotly.graph_objects as go
 from matplotlib import rcParams, rcParamsDefault, colors
 import matplotlib.patches as mpatches
 import mnitimescales.utils as uti
+from mnitimescales.spatial.utils import _exp_decay, _lin_curve
 
 rcParams.update(rcParamsDefault)
 
@@ -874,7 +875,8 @@ def plot_sc_fit(
     data_stages: dict,
     params_stages: dict,
     colors_stage: dict,
-    data_name="corr_max",
+    data_name="corr",
+    ylabel="Cross-correlation",
     dict_stages=None,
     figsize=(8, 8),
 ):
@@ -890,6 +892,11 @@ def plot_sc_fit(
     # Compute the fontsize for the figure size
     fontsize_fig = _get_fontsize_ratio(figsize)
 
+    if list(params_stages.values())[0].size == 3:
+        _fit_func = _exp_decay
+    else:
+        _fit_func = _lin_curve
+
     # First, plot with comparison between fits
     for stage in data_stages.keys():
         if dict_stages is not None:
@@ -898,7 +905,7 @@ def plot_sc_fit(
             stage_title = stage
         axs[0].plot(
             data_stages[stage]["dist"].sort_values(),
-            uti._exp_decay(
+            _fit_func(
                 data_stages[stage]["dist"].sort_values(), *params_stages[stage]
             ),
             "-",
@@ -913,15 +920,14 @@ def plot_sc_fit(
         axis="both", which="both", labelsize=fontsize_fig * fsize.TICK_SIZE
     )
     axs[0].set_xlabel("Distance [mm]", fontsize=fontsize_fig * fsize.LABEL_SIZE)
-    axs[0].set_ylabel("Cross-correlation", fontsize=fontsize_fig * fsize.LABEL_SIZE)
-    # axs[0].set_title("Exponential fit", fontsize=fontsize_fig * fsize.TITLE_SIZE)
+    axs[0].set_ylabel(ylabel, fontsize=fontsize_fig * fsize.LABEL_SIZE)
     _format_spines(axs[0])
 
     # Then, one subplot with data from all stages
     for i, stage in enumerate(data_stages.keys()):
         axs[i + 1].scatter(
             data_stages[stage]["dist"],
-            data_stages[stage][data_name],
+            data_stages[stage][data_name].abs(),
             c=colors_stage[stage],
             s=0.5,
             alpha=0.1,
@@ -929,7 +935,7 @@ def plot_sc_fit(
         )
         axs[i + 1].plot(
             data_stages[stage]["dist"].sort_values(),
-            uti._exp_decay(
+            _fit_func(
                 data_stages[stage]["dist"].sort_values(), *params_stages[stage]
             ),
             "-",
@@ -941,7 +947,7 @@ def plot_sc_fit(
         axs[i + 1].set_xticks([])
         axs[i + 1].set_yticks([])
         axs[i + 1].set_xlabel("Distance [mm]", fontsize=fontsize_fig * fsize.LABEL_SIZE * 0.6)
-        axs[i + 1].set_ylabel("Cross-correlation", fontsize=fontsize_fig * fsize.LABEL_SIZE * 0.6)
+        axs[i + 1].set_ylabel(ylabel, fontsize=fontsize_fig * fsize.LABEL_SIZE * 0.6)
         _format_spines(axs[i + 1])
 
     return fig, axs
