@@ -1,4 +1,4 @@
-from scipy import signal, optimize
+from scipy import signal, optimize, integrate
 import numpy as np
 import pandas as pd
 from pybispectra import compute_fft, TDE
@@ -15,7 +15,7 @@ def _get_mni(df_info: pd.DataFrame, chan: str):
 
     return df_info.loc[df_info["chan"] == chan, ["mni_x", "mni_y", "mni_z"]].to_numpy(
         dtype=float
-    )
+    ).squeeze()
 
 
 def _compute_cc(data_ch1: np.ndarray, data_ch2: np.ndarray):
@@ -80,6 +80,7 @@ def compute_cc(
     df_info: pd.DataFrame,
     df_regions: pd.DataFrame,
     use_bispectrum=False,
+    freq_band=None,
 ) -> pd.DataFrame:
     """Compute cross-correlation (cc) between every pair of channels.
 
@@ -88,6 +89,7 @@ def compute_cc(
         df_info (pd.DataFrame): dataframe with information on channels
         df_regions (pd.DataFrame): map from region names to lobes
         use_bispectrum (bool, optional): use bispectrum estimation of cross-correlation. Defaults to False.
+        freq_band (tuple, optional): frequency band for bispectrum estimation. Defaults to None.
 
     Returns:
         pd.DataFrame: SC values (max lag and correlation) for every pair of channels.
@@ -121,12 +123,12 @@ def compute_cc(
 
             # Register info on electrodes location
             ch1_list.append(ch1)
-            reg1_list.append(df_info.loc[df_info["chan"] == ch1, "region"])
+            reg1_list.append(df_info.loc[df_info["chan"] == ch1, "region"].values[0])
             lobe1_list.append(
                 df_regions[df_regions["Region name"] == reg1_list[-1]]["Lobe"].values[0]
             )
             ch2_list.append(ch2)
-            reg2_list.append(df_info.loc[df_info["chan"] == ch2, "region"])
+            reg2_list.append(df_info.loc[df_info["chan"] == ch2, "region"].values[0])
             lobe2_list.append(
                 df_regions[df_regions["Region name"] == reg2_list[-1]]["Lobe"].values[0]
             )
@@ -145,7 +147,7 @@ def compute_cc(
                     data_ch1,
                     data_ch2,
                     sfreq=epochs.info["sfreq"],
-                    freq_band=(epochs.info["lowpass"], epochs.info["highpass"]),
+                    freq_band=freq_band,
                 )
 
             corr_max.append(corr_max_pair)
@@ -220,45 +222,129 @@ def _exp_decay(x, k, a, b):
     return a * np.exp(-x / k) + b
 
 
-def fit_sc(df_sc: pd.DataFrame, col_name: str, n_min=20, upper_bounds=(100, 1, 1)):
-
-    x = df_sc["dist"].to_numpy(dtype=float)
-    y = df_sc[col_name].to_numpy(dtype=float)
-    if len(y) < n_min:
-        return np.array([np.nan, np.nan, np.nan]), np.nan
-    try:
-        popt, pcov = optimize.curve_fit(
-            _exp_decay,
-            x,
-            y,
-            bounds=((0, 0, 0), upper_bounds),
-        )
-    except RuntimeError:
-        popt = np.array([np.nan, np.nan, np.nan])
-        pcov = np.nan
-
-    return popt, pcov
+def _lin_curve(x, a):
+    return a * x
 
 
-def fit_sc_bins(
-    df_sc_bin: pd.DataFrame, col_name: str, n_min=2, upper_bounds=(100, 1, 1)
+def _fit_sc(
+    df_sc: pd.DataFrame, fit_type: str, y_name: str, x_name="dist", n_min=20, upper_bounds=(100, 1, 1)
 ):
 
-    x = df_sc_bin["bin"].to_numpy(dtype=float)
-    y = df_sc_bin[col_name].to_numpy(dtype=float)
-    y_err = df_sc_bin[col_name + "_sem"].to_numpy(dtype=float)
+    x = df_sc[x_name].to_numpy(dtype=float)
+    y = df_sc[y_name].to_numpy(dtype=float)
     if len(y) < n_min:
         return np.array([np.nan, np.nan, np.nan]), np.nan
+    if fit_type == "exp":
+        fit_func = _exp_decay
+        lower_bounds = (0, 0, 0)
+    elif fit_type == "lin":
+        fit_func = _lin_curve
+        lower_bounds = 0
+        upper_bounds = np.inf
     try:
         popt, pcov = optimize.curve_fit(
-            _exp_decay,
+            fit_func,
             x,
             y,
-            sigma=y_err,
-            bounds=((0, 0, 0), upper_bounds),
+            bounds=(lower_bounds, upper_bounds),
         )
     except RuntimeError:
         popt = np.array([np.nan, np.nan, np.nan])
         pcov = np.nan
 
     return popt, pcov
+
+
+def exp_sc(
+    df_sc: pd.DataFrame, col_name: str, fit_type: str, upper_bounds: tuple
+) -> pd.DataFrame:
+
+    # First, fit all regions
+    popt, _ = _fit_sc(df_sc, fit_type, col_name, upper_bounds=upper_bounds)
+    df_params_all = pd.DataFrame(
+        popt.reshape(1, -1), columns=["k", "a", "b"], index=["all"]
+    )
+
+    # Then, one fit per MNI region
+    df_params_regs = []
+    for reg in df_sc["region_1"].unique():
+        df_sc_reg = df_sc[(df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)]
+        popt, _ = _fit_sc(df_sc_reg, col_name, upper_bounds=upper_bounds)
+        df_params_regs.append(
+            pd.DataFrame(popt.reshape(1, -1), columns=["k", "a", "b"], index=[reg])
+        )
+    df_params = pd.concat([df_params_all] + df_params_regs)
+
+    return df_params
+
+
+def median_sc(df_sc: pd.DataFrame, col_name: str) -> pd.DataFrame:
+
+    # Find median distance in entire dataset
+    dist_threshold = df_sc["dist"].median()
+
+    df_params = pd.DataFrame(
+        columns=["avg", "avg_low", "avg_high"],
+        index=["all"] + df_sc["region_1"].unique().to_list(),
+    )
+    df_params.loc["all", "avg"] = df_sc[col_name].mean()
+    df_params.loc["all", "avg_low"] = df_sc[col_name][
+        df_sc["dist"] <= dist_threshold
+    ].mean()
+    df_params.loc["all", "avg_high"] = df_sc[col_name][
+        df_sc["dist"] > dist_threshold
+    ].mean()
+    for reg in df_params.index[1:]:
+        df_params.loc[reg, "avg"] = df_sc[col_name][
+            (df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)
+        ].mean()
+        df_params.loc[reg, "avg_low"] = df_sc[col_name][
+            ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
+            & (df_sc["dist"] <= dist_threshold)
+        ].mean()
+        df_params.loc[reg, "avg_high"] = df_sc[col_name][
+            ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
+            & (df_sc["dist"] > dist_threshold)
+        ].mean()
+
+    return df_params
+
+
+def auc_sc(df_sc: pd.DataFrame, col_name: str) -> pd.DataFrame:
+
+    df_params = pd.DataFrame(
+        columns=["auc"],
+        index=["all"] + df_sc["region_1"].unique().to_list(),
+    )
+    df_params.loc["all", "auc"] = integrate.simpson(y=df_sc[col_name], x=df_sc["dist"])
+    for reg in df_params.index[1:]:
+        df_sc_reg = df_sc[(df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)]
+        df_params.loc[reg, "auc"] = integrate.simpson(
+            y=df_sc_reg[col_name], x=df_sc_reg["dist"]
+        )
+
+    return df_params
+
+
+# def fit_sc_bins(
+#     df_sc_bin: pd.DataFrame, col_name: str, n_min=2, upper_bounds=(100, 1, 1)
+# ):
+
+#     x = df_sc_bin["bin"].to_numpy(dtype=float)
+#     y = df_sc_bin[col_name].to_numpy(dtype=float)
+#     y_err = df_sc_bin[col_name + "_sem"].to_numpy(dtype=float)
+#     if len(y) < n_min:
+#         return np.array([np.nan, np.nan, np.nan]), np.nan
+#     try:
+#         popt, pcov = optimize.curve_fit(
+#             _exp_decay,
+#             x,
+#             y,
+#             sigma=y_err,
+#             bounds=((0, 0, 0), upper_bounds),
+#         )
+#     except RuntimeError:
+#         popt = np.array([np.nan, np.nan, np.nan])
+#         pcov = np.nan
+
+#     return popt, pcov

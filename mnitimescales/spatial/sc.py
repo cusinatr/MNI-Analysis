@@ -1,39 +1,38 @@
 """
 Module for computation of spatial correlations.
 """
+
 from pathlib import Path
 import pandas as pd
-from mnitimescales.utils import create_res_df
+import numpy as np
 from . import utils
 
 
-class SC():
+class SC:
 
     def __init__(
         self,
         df_info: pd.DataFrame,
+        df_regions: pd.DataFrame,
         epochs: dict,
         stage: str,
         results_path: Path,
-        config_path: Path,
     ):
 
         self.df_info = df_info
+        self.df_regions = df_regions
         self.epochs = epochs
         self.stage = stage
         self.results_path = results_path
-        self.config_path = config_path
-        # TODO: Parameters for analysis
-        
-
-    def _compute_sc_pat(self, pat_id, chans_pat):
-
-        
-
-        return
+        # For analysis
+        self.df_sc = None
+        self.freq_band = None
+        self.use_bispectrum = None
 
     def compute_sc(
         self,
+        freq_band=None,
+        use_bispectrum=False,
     ) -> pd.DataFrame:
         """_summary_
 
@@ -45,6 +44,9 @@ class SC():
             pd.DataFrame: _description_
         """
 
+        self.freq_band = freq_band
+        self.use_bispectrum = use_bispectrum
+
         pats = self.df_info["pat"].unique().tolist()
         df_sc = []
 
@@ -52,24 +54,44 @@ class SC():
             print("Patient: ", pat)
 
             df_info_pat = self.df_info[self.df_info["pat"] == pat]
-            chans_pat = df_info_pat["chan"].to_list()
 
             # Check epochs are available
             if self.epochs[pat] is None:
                 continue
-            df_sc_pat = self._compute_sc_pat(pat, chans_pat)
-            # df_sc_pat = create_res_df(
-            #     df_info_pat,
-            #     self.epochs[pat].ch_names,
-            #     self.stage,
-            #     columns_res=["r2", "exp", "tau"],
-            # )
-            # df_sc_pat[["r2", "exp", "tau"]] = sc_pat.loc[
-            #     df_sc_pat["chan"]
-            # ].to_numpy()
+            df_sc_pat = utils.compute_cc(
+                self.epochs[pat],
+                df_info_pat,
+                self.df_regions,
+                use_bispectrum,
+                freq_band,
+            )
+            df_sc_pat.insert(0, "pat", pat)
             df_sc.append(df_sc_pat)
 
         # Concatenate results
         df_sc = pd.concat(df_sc, ignore_index=True)
 
         return df_sc
+
+    def fit_sc(self, df_sc: pd.DataFrame, fit_mode: str, col_name: str):
+
+        if fit_mode == "fit":
+            # Check type of fit
+            if col_name == "corr":
+                fit_type = "exp"
+            elif col_name == "lag":
+                fit_type = "lin"
+            # Check bounds values
+            if self.use_bispectrum:
+                upper_bounds = (100, np.inf, np.inf)
+            else:
+                upper_bounds = (100, 1, 1)
+            df_sc_fit = utils.exp_sc(df_sc, col_name, fit_type, upper_bounds)
+        elif fit_mode == "median":
+            df_sc_fit = utils.median_sc(df_sc, col_name)
+        elif fit_mode == "auc":
+            df_sc_fit = utils.auc_sc(df_sc, col_name)
+        else:
+            raise ValueError("fit_mode must be one of 'fit', 'median', 'auc'")
+
+        return df_sc_fit
