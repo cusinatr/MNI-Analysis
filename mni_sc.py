@@ -13,15 +13,15 @@ import mni_utils as uti
 # Paths and parameters
 ###
 
-base_path = Path("F:\\iEEG_neural_dynamics\\MNIOpen")
+base_path = Path("F:\\MNIOpen")
 mmp_name = "MMP_in_MNI_symmetrical_1.nii.gz"
-out_dir = "Results_SC_bispectrum"
+out_dir = "test_sc"
 dist_bins = np.arange(0, 101, 10)  # bins to use as distances
-freq_band = False
+freq_band = True
 band_freqs = [40, 80]
 recompute = True
 fit_bins = False
-use_bispectrum = True
+use_bispectrum = False
 
 ###
 # Create folder for storing results
@@ -29,13 +29,13 @@ use_bispectrum = True
 
 res_path = base_path.joinpath(out_dir)
 res_path.mkdir(parents=True, exist_ok=True)
-mmp_path = base_path.joinpath(mmp_name)
+mmp_path = base_path.joinpath("Data", "Parcellation", mmp_name)
 
 ###
 # Import data
 ###
 
-data_path = base_path.joinpath("MatlabFile.mat")
+data_path = base_path.joinpath("Data", "Raw", "MatlabFile.mat")
 data = loadmat(data_path)
 
 ###
@@ -69,10 +69,9 @@ df_info["region"] = df_info["region"].apply(lambda x: regions_map[x])
 # Read data & region info from MNI
 ###
 
-df_regions_mni = pd.read_csv(base_path.joinpath("RegionInformation.csv"))
-df_regions_mni["Region name"] = df_regions_mni["Region name"].apply(
-    lambda x: x.strip("'")
-)
+regions_path = base_path.joinpath("Data", "Parcellation", "RegionInformation.csv")
+df_regions_mni = pd.read_csv(regions_path)
+df_regions_mni["Region name"] = df_regions_mni["Region name"].apply(lambda x: x.strip("'"))
 
 ###
 # Compute cross-correlations
