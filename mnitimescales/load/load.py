@@ -85,7 +85,7 @@ class Load:
         filt=False,
         filt_freqs=None,
     ):
-        
+
         self.raws = {}
 
         # Load info if not present
@@ -126,7 +126,6 @@ class Load:
         filt=False,
         filt_freqs=None,
     ):
-        
 
         self.epochs = {}
 
