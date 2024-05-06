@@ -655,10 +655,11 @@ def get_pcorr_mnia(
 ):
 
     # Separate cortical and amygdala/hippocampus regions
-    x_ctx = x.drop(["Amygdala", "Hippocampus"])
-    x_ha = x.loc[["Amygdala", "Hippocampus"]].copy()
-    y_ctx = y.drop(["Amygdala", "Hippocampus"])
-    y_ha = y.loc[["Amygdala", "Hippocampus"]].copy()
+    ha_keys = y.index.intersection(["Amygdala", "Hippocampus"])
+    x_ctx = x.drop(ha_keys)
+    x_ha = x.loc[ha_keys].copy()
+    y_ctx = y.drop(ha_keys)
+    y_ha = y.loc[ha_keys].copy()
 
     # Make sure that coordinates have the same index as the data
     idx_order = [i[:-3] for i in map_coords.index[: len(map_coords) // 2]]
@@ -689,8 +690,8 @@ def get_pcorr_mnia(
     yy = pd.concat([y_ctx, y_ctx])
     for spin in range(nspins):
         # Re-append hip / amy electrodes for computation
-        x_perm = xx.iloc[spins[:, spin]].to_list() + x_ha.to_list() * 2
-        y_perm = yy.to_list() + y_ha.to_list() * 2
+        x_perm = xx.iloc[spins[:, spin]].to_list() + x_ha.to_list() * len(ha_keys)
+        y_perm = yy.to_list() + y_ha.to_list() * len(ha_keys)
         permuted_p[spin] = corr_func(x_perm, y_perm)[0]
 
     # Compute p-value

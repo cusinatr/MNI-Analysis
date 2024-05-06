@@ -59,12 +59,12 @@ def _compute_cc_bispectrum(
         verbose=False,
     )
     if freq_band is None:
-        band_freqs = (0, sfreq / 2)
+        freq_band = (0, sfreq / 2)
     # Compute TDE
     tde.compute(
         indices=((0,), (1,)),
-        fmin=(band_freqs[0]),
-        fmax=(band_freqs[1]),
+        fmin=(freq_band[0]),
+        fmax=(freq_band[1]),
         method=1,
         antisym=True,
     )

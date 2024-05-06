@@ -93,9 +93,14 @@ class PipeSC:
         for stage in self.stages:
 
             # 1) Load data
-            epo_stage = load.load_epo_stage(
-                stage, epo_dur, epo_overlap, filt, filt_freqs
-            )
+            if use_bispectrum:
+                epo_stage = load.load_epo_stage(
+                    stage, epo_dur, epo_overlap, filt=False
+                )
+            else:
+                epo_stage = load.load_epo_stage(
+                    stage, epo_dur, epo_overlap, filt, filt_freqs
+                )
 
             # 2) Compute sc
             sc = SC(
