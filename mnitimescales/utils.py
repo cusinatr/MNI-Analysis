@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 from scipy import signal
 from scipy import optimize, spatial
-from scipy.stats import pearsonr, spearmanr, bootstrap, zscore
+from scipy.stats import pearsonr, spearmanr, bootstrap, false_discovery_control
 import statsmodels.formula.api as smf
 from sklearn.utils.validation import check_random_state
 
@@ -63,6 +63,7 @@ def create_res_df(
     df_res_pat["mni_z"] = df_info_pat_chs["mni_z"].to_list()
 
     return df_res_pat
+
 
 def get_avg_tau_mni(data: pd.DataFrame, metric_name="tau", method="LME") -> pd.Series:
     """Get average timescale per parcel of the MNI atlas.
@@ -157,10 +158,10 @@ def get_hip_amy_vtx(HO_atlas, surface_hip_amy, k=101):
     return surface_nodes_labels
 
 
-
 ###
 # Functions for slow waves and timescales
 ###
+
 
 def divide_sws(
     data: dict,
@@ -254,10 +255,79 @@ def divide_sws(
     return data_sws
 
 
+###
+# Spatial analysis
+###
 
+def get_tc_sc_corr(df_sc: dict, df_timescales: pd.DataFrame, stages: list, distances: np.ndarray, 
+map_coords: np.ndarray, corr_type="pearson") -> dict:
 
+    # Compute dataframe for average cross-correlation per distance block
+    index = pd.MultiIndex.from_product(
+        [list(df_sc[stages[0]]["region_1"].unique()), distances],
+        names=["region", "distance"],
+    )
+    df_avg_d = pd.DataFrame(
+        columns=stages,
+        index=index,
+    )
+    delta_d = distances[1] - distances[0]  # Delta of distances blocks
+    for reg in df_avg_d.index.get_level_values("region").unique():
+        for dist in distances:
+            for stage in stages:
+                df_avg_d.loc[(reg, dist), stage] = (
+                    df_sc[stage]["corr"][
+                        (
+                            (df_sc[stage]["region_1"] == reg)
+                            | (df_sc[stage]["region_2"] == reg)
+                        )
+                        & (df_sc[stage]["dist"] <= dist + delta_d)
+                        & (df_sc[stage]["dist"] > dist - delta_d)
+                    ]
+                    .abs()
+                    .mean()
+                )
+    df_avg_d.reset_index(inplace=True)
 
+    # Compute correlations with TC per stage
+    df_rhos_d = {}
+    for stage in stages:
+        df_rhos_d_stage = pd.DataFrame(index=df_avg_d["distance"].unique(), columns=["rho", "rho_se", "pval"], dtype=float)
+        # Get average tau per MNI region
+        df_tau_stage_mni = get_avg_tau_mni(
+            df_timescales[df_timescales["stage"] == stage].copy(), method="LME"
+        )
+        for dist in df_avg_d["distance"].unique():
+            # Get spatial parameter
+            df_spa = df_avg_d[df_avg_d["distance"] == dist].set_index("region")
+            df_spa = df_spa[stage].dropna()
+            # Map coords
+            map_coords_dist = map_coords.loc[
+                list(df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore") + "_lh")
+                + list(df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore") + "_rh")
+            ]
+            # Get correlation values
+            rho, p_corr = get_pcorr_mnia(
+                df_tau_stage_mni.loc[df_spa.index],
+                df_spa,
+                map_coords_dist,
+                method="vasa",
+                corr_type=corr_type,
+            )
+            rho_boot = get_rho_boot(
+                df_tau_stage_mni.loc[df_spa.index],
+                df_spa, corr_type=corr_type, nboot=1000  # keep bootstraps lower for comp. time
+            )
+            df_rhos_d_stage.loc[dist, "rho"] = rho
+            df_rhos_d_stage.loc[dist, "rho_se"] = rho_boot.standard_error
+            df_rhos_d_stage.loc[dist, "pval"] = p_corr
 
+        # Correct p-values with FDR
+        df_rhos_d_stage.loc[:, "pval"] = false_discovery_control(df_rhos_d_stage.loc[:, "pval"])
+
+        df_rhos_d[stage] = df_rhos_d_stage.copy()
+
+    return df_rhos_d
 
 ###
 # Generate null models

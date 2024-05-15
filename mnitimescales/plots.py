@@ -879,6 +879,7 @@ def plot_sc_fit(
     ylabel="Cross-correlation",
     dict_stages=None,
     figsize=(8, 8),
+    dpi=300
 ):
 
     gs_kw = dict(width_ratios=[3, 1])
@@ -886,7 +887,7 @@ def plot_sc_fit(
         [["left", "upper right"], ["left", "center right"], ["left", "lower right"]],
         gridspec_kw=gs_kw,
         figsize=_get_figsize_inches(figsize),
-        dpi=600,
+        dpi=dpi,
     )
     axs = [axd["left"], axd["upper right"], axd["center right"], axd["lower right"]]
     # Compute the fontsize for the figure size
@@ -951,3 +952,44 @@ def plot_sc_fit(
         _format_spines(axs[i + 1])
 
     return fig, axs
+
+
+def plot_tc_sc_corr(
+    ax: plt.Axes, 
+    df_rhos_d: pd.DataFrame, 
+    color="k",
+    color_stars=None,
+    figsize=(6, 6),
+    label="",
+    title="",
+    xlabel="",
+    ylabel="",
+    ylims=None,
+    ):
+
+    fontsize_fig = _get_fontsize_ratio(figsize)
+
+    ax.plot(df_rhos_d.index, df_rhos_d["rho"], lw=2, c=color, label=label)
+    ax.fill_between(df_rhos_d.index, df_rhos_d["rho"] - df_rhos_d["rho_se"], df_rhos_d["rho"] + df_rhos_d["rho_se"], 
+    alpha=0.2, color=color)
+    ax.axhline(0.0, color="k", ls="--", lw=0.5)
+
+    # Put significant distances
+    sig_dist = df_rhos_d.index[df_rhos_d["pval"] < 0.05]
+    if color_stars is None:
+        color_stars = color
+    ax.scatter(sig_dist, df_rhos_d.loc[sig_dist, "rho"], marker="*", c=color_stars, 
+    s=fontsize_fig * 16, zorder=10)
+
+    # Plot parameters
+    xlims = df_rhos_d.index[[0, -1]]
+    delta = df_rhos_d.index[1] - df_rhos_d.index[0]
+    ax.set_xlim(xlims[0] - delta / 2, xlims[1] + delta / 2)
+    ax.set_ylim(ylims)
+    ax.tick_params(axis="both", which="both", labelsize=fontsize_fig * fsize.TICK_SIZE)
+    ax.set_xlabel(xlabel, fontsize=fontsize_fig * fsize.LABEL_SIZE)
+    ax.set_ylabel(ylabel, fontsize=fontsize_fig * fsize.LABEL_SIZE)
+    ax.set_title(title, fontsize=fontsize_fig * fsize.TITLE_SIZE)
+    _format_spines(ax)
+    
+    return ax
