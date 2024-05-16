@@ -27,8 +27,8 @@ def _compute_cc(data_ch1: np.ndarray, data_ch2: np.ndarray):
     # Loop over epochs
     corr_avg = []
     for k in range(len(data_ch1)):
-        ch1_norm = (data_ch1[k] - data_ch1[k].mean()) / (np.std(data_ch1[k]) * len(data_ch1[k]))  # np.linalg.norm(data_ch1[k])
-        ch2_norm = (data_ch2[k] - data_ch2[k].mean()) / (np.std(data_ch2[k]))  # np.linalg.norm(data_ch2[k])
+        ch1_norm = (data_ch1[k] - data_ch1[k].mean()) / (np.std(data_ch1[k]) * len(data_ch1[k]))
+        ch2_norm = (data_ch2[k] - data_ch2[k].mean()) / (np.std(data_ch2[k]))
         corr = signal.correlate(ch1_norm, ch2_norm, mode="same")
         lags = signal.correlation_lags(len(ch1_norm), len(ch2_norm), mode="same")
         corr_avg.append(corr)
