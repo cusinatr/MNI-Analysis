@@ -304,7 +304,7 @@ def detect_sws_gamma(
     chs_flip = [i for i, (ch, inv) in enumerate(invert.items()) if inv]
     raw_swa_flip._data[chs_flip] *= -1
 
-    # Compute slow waves for all channels with original polarity
+    # Compute slow waves for all channels with changed polarity
     sw_events = _detect_sws(
         raw_swa_flip,
         hypnogram,
