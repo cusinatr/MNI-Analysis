@@ -259,8 +259,16 @@ def divide_sws(
 # Spatial analysis
 ###
 
-def get_tc_sc_corr(df_sc: dict, df_timescales: pd.DataFrame, stages: list, distances: np.ndarray, 
-map_coords: np.ndarray, corr_type="pearson") -> dict:
+
+def get_tc_sc_corr(
+    df_sc: dict,
+    df_timescales: pd.DataFrame,
+    stages: list,
+    distances: np.ndarray,
+    map_coords: np.ndarray,
+    delta_d=None,
+    corr_type="pearson",
+) -> dict:
 
     # Compute dataframe for average cross-correlation per distance block
     index = pd.MultiIndex.from_product(
@@ -271,7 +279,9 @@ map_coords: np.ndarray, corr_type="pearson") -> dict:
         columns=stages,
         index=index,
     )
-    delta_d = distances[1] - distances[0]  # Delta of distances blocks
+    if delta_d is None:
+        delta_d = distances[1] - distances[0]  # Delta of distances blocks
+
     for reg in df_avg_d.index.get_level_values("region").unique():
         for dist in distances:
             for stage in stages:
@@ -292,7 +302,11 @@ map_coords: np.ndarray, corr_type="pearson") -> dict:
     # Compute correlations with TC per stage
     df_rhos_d = {}
     for stage in stages:
-        df_rhos_d_stage = pd.DataFrame(index=df_avg_d["distance"].unique(), columns=["rho", "rho_se", "pval"], dtype=float)
+        df_rhos_d_stage = pd.DataFrame(
+            index=df_avg_d["distance"].unique(),
+            columns=["rho", "rho_se", "pval"],
+            dtype=float,
+        )
         # Get average tau per MNI region
         df_tau_stage_mni = get_avg_tau_mni(
             df_timescales[df_timescales["stage"] == stage].copy(), method="LME"
@@ -303,8 +317,14 @@ map_coords: np.ndarray, corr_type="pearson") -> dict:
             df_spa = df_spa[stage].dropna()
             # Map coords
             map_coords_dist = map_coords.loc[
-                list(df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore") + "_lh")
-                + list(df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore") + "_rh")
+                list(
+                    df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore")
+                    + "_lh"
+                )
+                + list(
+                    df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore")
+                    + "_rh"
+                )
             ]
             # Get correlation values
             rho, p_corr = get_pcorr_mnia(
@@ -316,18 +336,23 @@ map_coords: np.ndarray, corr_type="pearson") -> dict:
             )
             rho_boot = get_rho_boot(
                 df_tau_stage_mni.loc[df_spa.index],
-                df_spa, corr_type=corr_type, nboot=1000  # keep bootstraps lower for comp. time
+                df_spa,
+                corr_type=corr_type,
+                nboot=1000,  # keep bootstraps lower for comp. time
             )
             df_rhos_d_stage.loc[dist, "rho"] = rho
             df_rhos_d_stage.loc[dist, "rho_se"] = rho_boot.standard_error
             df_rhos_d_stage.loc[dist, "pval"] = p_corr
 
         # Correct p-values with FDR
-        df_rhos_d_stage.loc[:, "pval"] = false_discovery_control(df_rhos_d_stage.loc[:, "pval"])
+        df_rhos_d_stage.loc[:, "pval"] = false_discovery_control(
+            df_rhos_d_stage.loc[:, "pval"]
+        )
 
         df_rhos_d[stage] = df_rhos_d_stage.copy()
 
     return df_rhos_d
+
 
 ###
 # Generate null models
