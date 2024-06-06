@@ -83,8 +83,14 @@ def save_figure(fig, fig_path, format="svg"):
         format (str, optional): format to save figure. Defaults to "svg".
     """
 
-    fig.savefig(fig_path, format=format, dpi=300, bbox_inches="tight", 
-                transparent=True, pad_inches=0)
+    fig.savefig(
+        fig_path,
+        format=format,
+        dpi=300,
+        bbox_inches="tight",
+        transparent=True,
+        pad_inches=0,
+    )
 
 
 def _get_fontsize_ratio(figsize: tuple, A_ref=72.25):
@@ -148,6 +154,7 @@ def _get_camera_view_from_elevation_and_azimuth(elev, azim, r=1.5):
 
 _set_font_params()
 
+
 def plot_conds_regs(
     ax: plt.axes,
     df_plot: pd.DataFrame,
@@ -161,39 +168,28 @@ def plot_conds_regs(
         "N1": "dodgerblue",
         "": "k",
     },
-    reg_order=[
-        "WM",
-        "OC",
-        "PC",
-        "INS",
-        "MTC",
-        "STG",
-        "BT",
-        "ENT",
-        "HIP",
-        "AMY",
-        "OFC",
-        "LFC",
-    ],
+    reg_order=["OCX", "TCX", "PCX", "FCX", "ENT", "HIP", "AMY"],
     cond_order=["W", "N1", "N2", "N3", "R", ""],
     plot_type="bar",
     show_scatter=False,
     show_lines=True,
-    text=False,
-    markersize=4
+    markersize=4,
 ) -> plt.axes:
-    """Scatterplot of metric for each region, diveded in conditions.
+    """BAr or point plot of median metric for each region, diveded in conditions.
 
     Args:
         ax (plt.axes): axes to plot on.
-        df_plot (pd.DataFrame): dataframe with region, condition, metric and interqurtile range.
+        df_plot (pd.DataFrame): dataframe with region, condition and metric for each channel.
         jitter (float, optional): Jitter for scatter plots. Defaults to 0.05.
         sep (float, optional): Separation between conditions. Defaults to 0.3.
         colors_cond (dict, optional): dict with colors associated with each condition.
             Defaults to { "wake": "r", "rem": "g", "n3": "purple", "n2": "c", "n1": "dodgerblue"}.
         reg_order (list, optional): Order of regions to plot. Defaults to ["OCX", "TCX", "PCX", "FCX", "ENT", "HIP", "AMY"].
         cond_order (list, optional): Order of conditions to plot. Defaults to ["W", "N1", "N2", "N3", "R"].
-        text (bool, optional): Whether to annotate text. Defaults to False.
+        plot_type (str, optional): Type of plot. Can be "bar" or "point". Defaults to "bar".
+        show_scatter (bool, optional): Show scatter plot. Defaults to False.
+        show_lines (bool, optional): Show lines connecting points. Defaults to True.
+        markersize (int, optional): Size of markers for point plot. Defaults to 4.
 
     Returns:
         plt.axes: modified axes.
@@ -235,55 +231,6 @@ def plot_conds_regs(
             for cond in Conds
         ]
 
-        # # Median values & IQR
-        # means_reg = []
-        # for j, cond in enumerate(Conds):
-        #     mean_reg_cond = np.nanmedian(data_reg_conds[j])
-        #     iqr = np.quantile(data_reg_conds[j], (0.25, 0.75))
-        #     means_reg.append(mean_reg_cond)
-        #     ax.scatter(
-        #         ticks_regions[i] + (ticks_conds[j] - 0 / 2),
-        #         mean_reg_cond,
-        #         c=colors_cond[cond],
-        #         marker="o",
-        #         s=markersize,
-        #         zorder=4,
-        #     )
-        #     ax.plot(
-        #         [ticks_regions[i] + (ticks_conds[j] - 0 / 2)] * 2,
-        #         [iqr[0], iqr[1]],
-        #         c=colors_cond[cond],
-        #         lw=1,
-        #         solid_capstyle="round",
-        #         zorder=4,
-        #     )
-        #     # Text
-        #     if text:
-        #         ax.annotate(
-        #             f"{mean_reg_cond:.1f}+-{np.std(data_reg_conds[j]):.1f}",
-        #             (
-        #                 ticks_regions[i] + (ticks_conds[j] - 0 / 2),
-        #                 1.03 * np.max(data_reg_conds[j]),
-        #             ),
-        #             weight="bold",
-        #             ha="center",
-        #             va="center",
-        #             fontsize=fsize.TEXT_SIZE,
-        #             clip_on=True,
-        #         )
-        # if show_lines:
-        #     for k in range(len(means_reg) - 1):
-        #         ax.plot(
-        #             [
-        #                 ticks_regions[i] + (ticks_conds[k] - 0 / 2),
-        #                 ticks_regions[i] + (ticks_conds[k + 1] - 0 / 2),
-        #             ],
-        #             [means_reg[k], means_reg[k + 1]],
-        #             lw=0.3,
-        #             color="k",
-        #             alpha=0.8,
-        #             zorder=3,
-        #         )
         # Bar plot
         if plot_type == "bar":
             means_reg = []
@@ -300,7 +247,7 @@ def plot_conds_regs(
                     color=colors_cond[cond],
                     ecolor="k",
                     error_kw={"elinewidth": 1, "dash_capstyle": "round"},
-                    linewidth=0,  
+                    linewidth=0,
                 )
         elif plot_type == "point":
             # Median values & IQR
@@ -338,7 +285,6 @@ def plot_conds_regs(
                         alpha=0.8,
                         zorder=3,
                     )
-            
 
         # Scatter plot
         if show_scatter:
@@ -367,16 +313,18 @@ def plot_conds_regs(
                                 alpha=0.4,
                                 zorder=1,
                             )
-        
 
         i += 1  # keep track of region
 
     # Axes
-    # ax.set_xticks(ticks_regions, labels=[reg for reg in reg_order if reg in Regions], 
-    #               rotation=45, ha="right", fontsize=fsize.TICK_SIZE - 2)
-    # ax.set_ylabel(metric_name, fontsize=fsize.LABEL_SIZE)
-    ax.set_yticks(ticks_regions, labels=[reg for reg in reg_order if reg in Regions], 
-                  rotation=0, va="center", ha="right", fontsize=fsize.TICK_SIZE)
+    ax.set_yticks(
+        ticks_regions,
+        labels=[reg for reg in reg_order if reg in Regions],
+        rotation=0,
+        va="center",
+        ha="right",
+        fontsize=fsize.TICK_SIZE,
+    )
     ax.set_xlabel(metric_name, fontsize=fsize.LABEL_SIZE)
 
     # Spines
@@ -389,8 +337,6 @@ def plot_conds_regs(
             leg.append(mpatches.Patch(color=color, alpha=1.0, linewidth=0))
             leg_names.append(cond)
     ax.legend(leg, leg_names, frameon=False, fontsize=fsize.TEXT_SIZE)
-
-    # return ax
 
 
 def plot_parcellated_metric(
@@ -474,7 +420,11 @@ def plot_parcellated_metric(
             colorbar=False,
         )
     # Add medial wall in grey
-    lab_plot = [label for label in labels_mne if (("Unknown" in label.name[:-3]) or ("???" in label.name[:-3]))][0]
+    lab_plot = [
+        label
+        for label in labels_mne
+        if (("Unknown" in label.name[:-3]) or ("???" in label.name[:-3]))
+    ][0]
     brain.add_label(lab_plot, borders=False, color="grey")
 
     brainviews = []
@@ -484,7 +434,9 @@ def plot_parcellated_metric(
     brainviews.append(brain.screenshot())
     brain.close()
 
-    fig, ax = plt.subplots(figsize=_get_figsize_inches(figsize), dpi=300)#, layout="constrained")
+    fig, ax = plt.subplots(
+        figsize=_get_figsize_inches(figsize), dpi=300
+    )  # , layout="constrained")
     # Get fontsize for the figure
     img = ax.imshow(np.concatenate(brainviews, axis=1), cmap=cmap, norm=norm)
     cax = inset_axes(ax, width="50%", height="2%", loc=8, borderpad=3)
@@ -495,13 +447,13 @@ def plot_parcellated_metric(
         cbar.set_ticks(cbar_ticks)
     else:
         cbar.set_ticks([minv, maxv])
-    cbar.set_label(label=label, size=32) #fontsize_fig * fsize.LABEL_SIZE)
+    cbar.set_label(label=label, size=32)  # fontsize_fig * fsize.LABEL_SIZE)
     cbar.mappable.set_clim(minv, maxv)
-    cbar.ax.tick_params(labelsize=25) #fontsize_fig * fsize.TICK_SIZE)
+    cbar.ax.tick_params(labelsize=25)  # fontsize_fig * fsize.TICK_SIZE)
 
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(title, fontsize=32) #fontsize_fig * fsize.TITLE_SIZE)
+    ax.set_title(title, fontsize=32)  # fontsize_fig * fsize.TITLE_SIZE)
     _format_spines(ax, s_inv=["top", "right", "bottom", "left"])
 
     return fig, ax
@@ -643,7 +595,7 @@ def half_violin_plot(
     color: str,
     pval=None,
     alpha=0.5,
-    add_line=False
+    add_line=False,
 ):
     """Generate half violin plots with average and confidence intervals.
 
@@ -946,7 +898,7 @@ def plot_sc_fit(
     ylabel="Max cross-correlation",
     dict_stages=None,
     figsize=(8, 8),
-    dpi=300
+    dpi=300,
 ):
 
     gs_kw = dict(width_ratios=[2, 1])
@@ -971,9 +923,7 @@ def plot_sc_fit(
             stage_title = stage
         axs[0].plot(
             data_stages[stage]["dist"].sort_values(),
-            _fit_func(
-                data_stages[stage]["dist"].sort_values(), *params_stages[stage]
-            ),
+            _fit_func(data_stages[stage]["dist"].sort_values(), *params_stages[stage]),
             "-",
             c=colors_stage[stage],
             label=stage_title,
@@ -984,9 +934,7 @@ def plot_sc_fit(
     axs[0].legend(frameon=False, fontsize=fsize.TEXT_SIZE)
     axs[0].set_xlim(0, 120)
     axs[0].set_xticks([0, 60, 120], labels=[0, 60, 120], fontsize=fsize.TICK_SIZE)
-    axs[0].tick_params(
-        axis="both", which="both", labelsize=fsize.TICK_SIZE
-    )
+    axs[0].tick_params(axis="both", which="both", labelsize=fsize.TICK_SIZE)
     axs[0].set_xlabel("Distance [mm]", fontsize=fsize.LABEL_SIZE)
     axs[0].set_ylabel(ylabel, fontsize=fsize.LABEL_SIZE)
     _format_spines(axs[0])
@@ -1003,9 +951,7 @@ def plot_sc_fit(
         )
         axs[i + 1].plot(
             data_stages[stage]["dist"].sort_values(),
-            _fit_func(
-                data_stages[stage]["dist"].sort_values(), *params_stages[stage]
-            ),
+            _fit_func(data_stages[stage]["dist"].sort_values(), *params_stages[stage]),
             "-",
             c="k",
             lw=2,
@@ -1014,7 +960,9 @@ def plot_sc_fit(
         # Adjust plots
         axs[i + 1].set_xlim(0, 120)
         if (i + 1) == len(data_stages.keys()):
-            axs[i + 1].set_xticks([0, 60, 120], labels=[0, "", 120], fontsize=fsize.TICK_SIZE * 0.8)
+            axs[i + 1].set_xticks(
+                [0, 60, 120], labels=[0, "", 120], fontsize=fsize.TICK_SIZE * 0.8
+            )
         else:
             axs[i + 1].set_xticks([0, 60, 120], labels=[""] * 3, fontsize=0)
         axs[i + 1].set_ylim(0, 1)
@@ -1033,16 +981,12 @@ def plot_sc_fit_2(
     dict_stages=None,
     figsize=(8, 8),
     ylim=(0, 1),
-    dpi=300
+    dpi=300,
 ):
 
     fig, axs = plt.subplots(
-        3, 
-        1,
-        figsize=_get_figsize_inches(figsize),
-        dpi=dpi,
-        layout="constrained"
-        )
+        3, 1, figsize=_get_figsize_inches(figsize), dpi=dpi, layout="constrained"
+    )
 
     if list(params_stages.values())[0].size == 3:
         _fit_func = _exp_decay
@@ -1061,19 +1005,19 @@ def plot_sc_fit_2(
         )
         axs[i].plot(
             data_stages[stage]["dist"].sort_values(),
-            _fit_func(
-                data_stages[stage]["dist"].sort_values(), *params_stages[stage]
-            ),
+            _fit_func(data_stages[stage]["dist"].sort_values(), *params_stages[stage]),
             "-",
             c="k",
             lw=2,
             zorder=9,
-            label="exponential fit"
+            label="exponential fit",
         )
         # Adjust plots
         axs[i].set_xlim(0, 120)
         if (i + 1) == len(data_stages.keys()):
-            axs[i].set_xticks([0, 60, 120], labels=[0, "", 120], fontsize=fsize.TICK_SIZE)
+            axs[i].set_xticks(
+                [0, 60, 120], labels=[0, "", 120], fontsize=fsize.TICK_SIZE
+            )
         else:
             axs[i].set_xticks([0, 60, 120], labels=[None] * 3, fontsize=0)
         axs[i].set_ylim(ylim)
@@ -1089,8 +1033,8 @@ def plot_sc_fit_2(
 
 
 def plot_tc_sc_corr(
-    ax: plt.Axes, 
-    df_rhos_d: pd.DataFrame, 
+    ax: plt.Axes,
+    df_rhos_d: pd.DataFrame,
     color="k",
     color_stars=None,
     label="",
@@ -1098,19 +1042,30 @@ def plot_tc_sc_corr(
     xlabel="",
     ylabel="",
     ylims=None,
-    ):
+):
 
     ax.plot(df_rhos_d.index, df_rhos_d["rho"], lw=2, c=color, label=label)
-    ax.fill_between(df_rhos_d.index, df_rhos_d["rho"] - df_rhos_d["rho_se"], df_rhos_d["rho"] + df_rhos_d["rho_se"], 
-    alpha=0.2, color=color)
+    ax.fill_between(
+        df_rhos_d.index,
+        df_rhos_d["rho"] - df_rhos_d["rho_se"],
+        df_rhos_d["rho"] + df_rhos_d["rho_se"],
+        alpha=0.2,
+        color=color,
+    )
     ax.axhline(0.0, color="k", ls="--", lw=0.5)
 
     # Put significant distances
     sig_dist = df_rhos_d.index[df_rhos_d["pval"] < 0.05]
     if color_stars is None:
         color_stars = color
-    ax.scatter(sig_dist, df_rhos_d.loc[sig_dist, "rho"], marker="*", c=color_stars, 
-    s=16, zorder=10)
+    ax.scatter(
+        sig_dist,
+        df_rhos_d.loc[sig_dist, "rho"],
+        marker="*",
+        c=color_stars,
+        s=16,
+        zorder=10,
+    )
 
     # Plot parameters
     xlims = df_rhos_d.index[[0, -1]]
@@ -1122,5 +1077,5 @@ def plot_tc_sc_corr(
     ax.set_ylabel(ylabel, fontsize=fsize.LABEL_SIZE)
     ax.set_title(title, fontsize=fsize.TITLE_SIZE)
     _format_spines(ax)
-    
+
     return ax
