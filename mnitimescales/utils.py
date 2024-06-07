@@ -268,6 +268,7 @@ def get_tc_sc_corr(
     map_coords: np.ndarray,
     delta_d=None,
     corr_type="pearson",
+    how="mean"
 ) -> dict:
 
     # Compute dataframe for average cross-correlation per distance block
@@ -285,8 +286,7 @@ def get_tc_sc_corr(
     for reg in df_avg_d.index.get_level_values("region").unique():
         for dist in distances:
             for stage in stages:
-                df_avg_d.loc[(reg, dist), stage] = (
-                    df_sc[stage]["corr"][
+                df_stage_dist_reg = df_sc[stage][
                         (
                             (df_sc[stage]["region_1"] == reg)
                             | (df_sc[stage]["region_2"] == reg)
@@ -294,9 +294,18 @@ def get_tc_sc_corr(
                         & (df_sc[stage]["dist"] <= dist + delta_d)
                         & (df_sc[stage]["dist"] > dist - delta_d)
                     ]
-                    .abs()
-                    .mean()
-                )
+                if how == "mean":
+                    corr_stage_dist_reg = df_stage_dist_reg["corr"].abs().mean()
+                elif how == "LME":
+                    data = df_stage_dist_reg.copy()
+                    data["corr"] = data["corr"].abs()
+                    try:
+                        md = smf.mixedlm("corr ~ 1", data, groups=data["pat"])
+                        mdf = md.fit(method="bfgs")
+                        corr_stage_dist_reg = mdf.fe_params.values[0]
+                    except ValueError:
+                        corr_stage_dist_reg = np.nan
+                df_avg_d.loc[(reg, dist), stage] = corr_stage_dist_reg
     df_avg_d.reset_index(inplace=True)
 
     # Compute correlations with TC per stage
