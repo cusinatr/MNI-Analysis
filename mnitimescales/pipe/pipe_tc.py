@@ -5,6 +5,16 @@ from mnitimescales import Load, FitACF, Parcel
 
 
 class PipeTC:
+    """
+    _summary_
+
+    Args:
+        mat_path (Path): path to the .mat file with the data.
+        results_path (str): _description_
+        config_path (str): _description_
+        parc_path (Path): _description_
+        stages (list, optional): _description_. Defaults to ["W", "N2", "N3", "R"].
+    """
 
     def __init__(
         self,

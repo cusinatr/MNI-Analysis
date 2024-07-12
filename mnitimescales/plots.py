@@ -585,7 +585,6 @@ def bar_plot(
 
     return ax
 
-
 def half_violin_plot(
     ax: plt.Axes,
     y_data: float,
