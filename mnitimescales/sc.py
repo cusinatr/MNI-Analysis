@@ -1,1 +1,0 @@
-# TODO: functions for computing and fitting spatial autocorrelation
