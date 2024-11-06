@@ -1,33 +1,36 @@
-# Path variables
-base_path: F:\iEEG_neural_dynamics\MNIOpen\Results_gamma_double_exp
-
-# Folder names
-fif_dir: ProcData
-psd_dir: PSD
-acf_dir: ACF
-
-# Plotting
-saving_format: pdf   # , png, svg, eps
-cond_colors: ['dodgerblue', 'c', 'purple', 'g', 'r']
-stage_colors:
-  wake: r
-  w: r
-  nrem1: dodgerblue
-  n1: dodgerblue
-  nrem2: c
-  n2: c
-  nrem3: purple
-  n3: purple
-  rem: g
-  r: g
-  "": orange
-
-psd:
-  figsizes: [6, 8]
-  xlabel: f [Hz]
-  ylabel: PSD [a.u.]
-
 acf:
-  figsizes: [6, 4]
+  figsizes:
+  - 6
+  - 4
   xlabel: Lag [ms]
   ylabel: Autocorrelation
+acf_dir: ACF
+base_path: F:/MNIOpen/Results/psd_gamma_exp/Pats
+cond_colors:
+- dodgerblue
+- c
+- purple
+- g
+- r
+fif_dir: ProcData
+psd:
+  figsizes:
+  - 6
+  - 8
+  xlabel: f [Hz]
+  ylabel: PSD [a.u.]
+psd_dir: PSD
+saving_format: pdf
+stage_colors:
+  ? ''
+  : orange
+  n1: dodgerblue
+  n2: c
+  n3: purple
+  nrem1: dodgerblue
+  nrem2: c
+  nrem3: purple
+  r: g
+  rem: g
+  w: r
+  wake: r
