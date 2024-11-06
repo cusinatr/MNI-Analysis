@@ -17,7 +17,7 @@ mat_file = "MatlabFile.mat"  # "MatlabFile.mat", "NREM-sleep-20min.mat"
 stages = ["W", "N2", "N3", "R"]
 
 # Output folder
-out_dir = "sc_analysis_broadband"
+out_dir = "sc_broadband"
 
 # Epochs duration
 epo_dur = 1  # s
@@ -25,7 +25,7 @@ epo_overlap = 0.5  # s
 
 # Frequencies for filtering
 filt = False
-filt_freqs = [0, 80]  # Hz
+filt_freqs = [40, 80]  # Hz
 
 # SC parameters
 use_bispectrum = False
@@ -61,3 +61,9 @@ pipe_sc.run_compute(
     use_bispectrum=use_bispectrum,
 )
 pipe_sc.run_fit(fit_modes=fit_modes, col_names=col_names)
+
+# Save all results in a single CSV file
+
+df_sc_bb_all_stages = pd.concat(df_sc_bb.values(), axis=0, ignore_index=True)
+df_sc_bb_all_stages["pair"] = df_sc_bb_all_stages["ch_1"] + "-" + df_sc_bb_all_stages["ch_2"]
+df_sc_bb_all_stages.to_csv(fig_path.joinpath("sc_bb_all_stages.csv"))

@@ -16,22 +16,22 @@ stages = ["N3"]
 sw_dir = "sw_analysis"
 
 # Output folder
-out_dir = "test_timescales_sw"
+out_dir = "sw_timescales_gamma"
 
 # Epochs duration
 epo_dur = 1  # s
-epo_overlap = 0.25  # s
-epo_sws = 2  # s
+epo_overlap = 0.5  # s
+epo_sws = 2.5  # s
 
 # Frequencies for filtering for timescales
-filt = False
+filt = True
 filt_freqs = [40, 80]  # Hz
 
 # ACF fit parameters
 nlags = 100  # compute all lags
 tau_mode = "fit"  # fit, interp
 fit_func = "exp"  # exp, exp_oscill, exp_double
-fit_range = [0.001, 0.5]  # [0.015, 0.3]
+fit_range = [0.015, 0.3]  # [0.001, 0.5]  # [0.015, 0.3]
 
 ###
 # Paths
