@@ -156,3 +156,4 @@ for stage in ["W", "N3", "R"]:
     file_name = f"SC_{stage}_fit_mni_regs"
     file_name += "_bins" if fit_bins else ""
     df_params.to_csv(res_path.joinpath(file_name + ".csv"))
+

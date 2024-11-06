@@ -1,0 +1,2 @@
+This should contain the tests for the functions in the modules of the package.
+These can be unit tests, but also examples of how to actually run the functions (can be skipped if there are alreasy scripts computing everyhting)
