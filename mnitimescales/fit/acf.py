@@ -65,7 +65,7 @@ class FitACF:
         fit_range: list,
         plot=True
     ) -> pd.DataFrame:
-        """Compute timescales per channels from a sample of ACFs.
+        """Compute timescales per channel from a sample of ACFs.
         Timescales are computed in the average ACF.
 
         Args:
