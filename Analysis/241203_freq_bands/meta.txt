@@ -1,0 +1,8 @@
+Goal: run timescales analysis on signals filtered in different frequency bands.
+
+delta: 1-4 Hz
+theta: 4-8 Hz
+alpha: 4-12 Hz
+beta: 12-30 Hz
+
++ broadband power
