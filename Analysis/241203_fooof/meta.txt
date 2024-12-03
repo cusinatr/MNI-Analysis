@@ -1,0 +1,1 @@
+Goal: run broadband timescales analysis with fooof and extract knee
