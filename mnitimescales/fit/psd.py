@@ -7,14 +7,14 @@ from .utils import create_pat_folder, convert_knee_tau
 
 
 class FitPSD:
-    """_summary_
+    """Fit PSDs from epoched data.
 
     Args:
-        df_info (pd.DataFrame): _description_
-        epochs (dict): _description_
-        stage (str): _description_
-        results_path (str): _description_
-        config_path (str): _description_
+        df_info (pd.DataFrame): metadata for each channel in the dataset.
+        epochs (dict): keys are pat names, values MNE Epochs.
+        stage (str): sleep stage being analyzed.
+        results_path (str): path where to store results.
+        config_path (str): path to file with analysis configurations.
     """
 
     def __init__(
@@ -35,7 +35,7 @@ class FitPSD:
         self.fit_mode = None
         self.fit_range = None
 
-    def _compute_psd_pat(self, pat_id, chans_pat):
+    def _compute_psd_pat(self, pat_id, chans_pat, plot=True):
 
         # Create folders & files
         create_pat_folder(pat_id, self.results_path, chans_pat)
@@ -51,7 +51,8 @@ class FitPSD:
         fg_pat = patSP.parametrize_psd(
             frange=self.fit_range, aperiodic_mode=self.fit_mode, save_full=False
         )
-        patSP.plot_parametrization(plot_range=[1, 80])
+        if plot:
+            patSP.plot_parametrization(plot_range=[1, 80])
         exp_pat = fg_pat.get_params("aperiodic_params", "exponent")
         r2_pat = fg_pat.get_params("r_squared")
         if self.fit_mode == "knee":
@@ -65,22 +66,21 @@ class FitPSD:
             tau_pat = np.array([np.nan] * len(fg_pat))
 
         return pd.DataFrame(
-            {"r2": r2_pat, "exp": exp_pat, "tau": tau_pat}, index=self.epochs[pat_id].ch_names
+            {"r2": r2_pat, "exp": exp_pat, "tau": tau_pat},
+            index=self.epochs[pat_id].ch_names,
         )
 
-    def compute_psd(
-        self,
-        fit_mode: str,
-        fit_range: list,
-    ) -> pd.DataFrame:
-        """_summary_
+    def compute_psd(self, fit_mode: str, fit_range: list, plot=True) -> pd.DataFrame:
+        """Compute parameter per channel from a sample of PSDs.
+        Parameters are computed in the average PSD.
 
         Args:
-            fit_mode (str): _description_
-            fit_range (list): _description_
+            fit_mode (str): PSD fitting mode, either 'fixed' or 'knee'.
+            fit_range (list): frequency range of PSD fitting.
+            plot (bool, optional): whether to plot results for each patient. Defaults to True.
 
         Returns:
-            pd.DataFrame: _description_
+            pd.DataFrame: df_info with added parameter values.
         """
 
         self.fit_mode = fit_mode
@@ -98,7 +98,7 @@ class FitPSD:
             # Check epochs are available
             if self.epochs[pat] is None:
                 continue
-            psd_pat = self._compute_psd_pat(pat, chans_pat)
+            psd_pat = self._compute_psd_pat(pat, chans_pat, plot)
             df_psd_pat = create_res_df(
                 df_info_pat,
                 self.epochs[pat].ch_names,
