@@ -6,14 +6,14 @@ from .utils import create_pat_folder
 
 
 class FitACF:
-    """_summary_
+    """Fit ACFs from epoched data.
 
     Args:
-        df_info (pd.DataFrame): _description_
-        epochs (dict): _description_
-        stage (str): _description_
-        results_path (str): _description_
-        config_path (str): _description_
+        df_info (pd.DataFrame): metadata for each channel in the dataset.
+        epochs (dict): keys are pat names, values MNE Epochs.
+        stage (str): sleep stage being analyzed.
+        results_path (str): path where to store results.
+        config_path (str): path to file with analysis configurations.
     """
 
     def __init__(
@@ -36,7 +36,7 @@ class FitACF:
         self.fit_func = None
         self.fit_range = None
 
-    def _compute_timescales_pat(self, pat_id, chans_pat):
+    def _compute_timescales_pat(self, pat_id, chans_pat, plot=True):
 
         # Create folders & files
         create_pat_folder(pat_id, self.results_path, chans_pat)
@@ -52,7 +52,8 @@ class FitACF:
         tau_pat = patTAU.compute_timescales(
             mode=self.tau_mode, fit_func=self.fit_func, fit_range=self.fit_range
         )
-        patTAU.plot_timescales()
+        if plot:
+            patTAU.plot_timescales()
 
         return list(tau_pat.values())
 
@@ -62,17 +63,20 @@ class FitACF:
         tau_mode: str,
         fit_func: str,
         fit_range: list,
+        plot=True
     ) -> pd.DataFrame:
-        """_summary_
+        """Compute timescales per channels from a sample of ACFs.
+        Timescales are computed in the average ACF.
 
         Args:
-            nlags (int): _description_
-            tau_mode (str): _description_
-            fit_func (str): _description_
-            fit_range (list): _description_
+            nlags (int): number of lags to compute for the ACF.
+            tau_mode (str): Timescales computation modality. Can be 'fit' or 'interp'.
+            fit_func (str): function to use for fitting.
+            fit_range (list): range of fitting in s.
+            plot (bool, optional): whether to plot results for each patient. Defaults to True.
 
         Returns:
-            pd.DataFrame: _description_
+            pd.DataFrame: df_info with added timescales values.
         """
 
         self.nlags = nlags
@@ -92,7 +96,7 @@ class FitACF:
             # Check epochs are available
             if self.epochs[pat] is None:
                 continue
-            timescales_pat = self._compute_timescales_pat(pat, chans_pat)
+            timescales_pat = self._compute_timescales_pat(pat, chans_pat, plot)
             df_timescales_pat = create_res_df(
                 df_info_pat, self.epochs[pat].ch_names, self.stage, columns_res=["tau"]
             )
