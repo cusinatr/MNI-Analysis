@@ -1,0 +1,18 @@
+base_path: F:\MNIOpen\
+results_dir: Results
+fig_dir: Figures
+parc_map_name: HCPMMP1
+
+stages: ["W", "N3", "R"]
+stage_colors:
+  W: red
+  N3: purple
+  R: green
+
+title_dict:
+  W: Wake
+  N2: NREM2
+  N3: NREM3
+  R: REM
+
+corr_type: spearman

@@ -1,0 +1,3 @@
+Goal: plot major results for timescales computed with FOOOF
+
+Also compare timescales with exp. fit vs FOOOF
