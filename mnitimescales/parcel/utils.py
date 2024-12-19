@@ -123,21 +123,27 @@ def compute_parc_metric(
     return feat_weighted, W_max
 
 
-def compute_weighted_average(df_feature, df_W, w_thresh=0.5, axis=0, method="weighted"):
-    """_summary_
+def compute_weighted_average(
+    df_feature: pd.DataFrame,
+    df_W: pd.DataFrame,
+    w_thresh=0.5,
+    axis=0,
+    method="weighted",
+):
+    """Compute weighted average of feature values.
 
     Args:
-        df_feature (_type_): _description_
-        df_W (_type_): _description_
-        w_thresh (float, optional): _description_. Defaults to 0.5.
-        axis (int, optional): _description_. Defaults to 0.
-        method (str, optional): _description_. Defaults to "weighted".
+        df_feature (pd.DataFrame): dataframe with feature value.
+        df_W (pd.DataFrame): dataframe with weights.
+        w_thresh (float, optional): threshold for weights. Defaults to 0.5.
+        axis (int, optional): axis to average (patient or parcel). Defaults to 0.
+        method (str, optional): method for averaging. Defaults to "weighted".
 
     Raises:
-        ValueError: _description_
+        ValueError: if method is not implemented.
 
     Returns:
-        _type_: _description_
+        pd.DataFrame: dataframe with averaged feature values.
     """
 
     if method == "weighted":
@@ -174,18 +180,18 @@ def compute_parc_metric_weight(
     pats: np.ndarray,
     method="weighted",
 ):
-    """_summary_
+    """Compute weights per parcel.
 
     Args:
-        feat_weighted (list): _description_
-        W_max (list): _description_
-        parcels (np.ndarray): _description_
-        parcels_names (np.ndarray): _description_
-        pats (np.ndarray): _description_
-        method (str, optional): _description_. Defaults to "weighted".
+        feat_weighted (list): feature weighted.
+        W_max (list): max weight per patient.
+        parcels (np.ndarray): array with parcels.
+        parcels_names (np.ndarray): parcel names.
+        pats (np.ndarray): patient codes.
+        method (str, optional): method for averaging. Defaults to "weighted".
 
     Returns:
-        _type_: _description_
+        dataframe with weights and feature averages.
     """
 
     # Compute summary quantities per parcel (per subject)

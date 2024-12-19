@@ -13,6 +13,11 @@ class Load:
         self,
         mat_path: Path,
     ):
+        """Load data as Raw and Epochs from mat file.
+
+        Args:
+            mat_path (Path): file with original data.
+        """
 
         self.mat_path = mat_path
 
@@ -25,7 +30,12 @@ class Load:
 
         self.raw_data = loadmat(self.mat_path)
 
-    def get_info(self):
+    def get_info(self) -> pd.DataFrame:
+        """Build a dataframe with metadata on every channel.
+
+        Returns:
+            pd.DataFrame: metadata.
+        """
 
         if self.raw_data is None:
             self._load_raw_data()
@@ -84,7 +94,17 @@ class Load:
         stage: str,
         filt=False,
         filt_freqs=None,
-    ):
+    ) -> dict:
+        """Load data as mne.Raw for a specific sleep stage.
+
+        Args:
+            stage (str): sleep stage, can be W, N2, N3 or R.
+            filt (bool, optional): Whether to filter data. Defaults to False.
+            filt_freqs (tuple, optional): Frequencies for bandpass. Defaults to None.
+
+        Returns:
+            dict: keys are patient codes, values Raw data.
+        """
 
         self.raws = {}
 
@@ -125,7 +145,19 @@ class Load:
         epo_overlap=0.5,
         filt=False,
         filt_freqs=None,
-    ):
+    ) -> dict:
+        """Create mne.Epochs data from Raw.
+
+        Args:
+            stage (str): sleep stage, can be W, N2, N3 or R.
+            epo_dur (float, optional): Epochs duration in s. Defaults to 1.0.
+            epo_overlap (float, optional): Epochs overlap in s. Defaults to 0.5.
+            filt (bool, optional): Whether to filter data. Defaults to False.
+            filt_freqs (tuple, optional): Frequencies for bandpass. Defaults to None.
+
+        Returns:
+            dict: keys are patient codes, values Epochs data.
+        """
 
         self.epochs = {}
 

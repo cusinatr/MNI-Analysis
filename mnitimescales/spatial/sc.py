@@ -9,6 +9,15 @@ from . import utils
 
 
 class SC:
+    """Compute CCF and max from epoched data.
+
+    Args:
+        df_info (pd.DataFrame): metadata for each channel in the dataset.
+        df_regions (pd.DataFrame): information on MNI Atlas regions.
+        epochs (dict): keys are pat names, values MNE Epochs.
+        stage (str): sleep stage being analyzed.
+        results_path (str): path where to store results.
+    """
 
     def __init__(
         self,
@@ -34,14 +43,14 @@ class SC:
         freq_band=None,
         use_bispectrum=False,
     ) -> pd.DataFrame:
-        """_summary_
+        """Compute CCF along with max and lag per pair of channels.
 
         Args:
-            fit_mode (str): _description_
-            fit_range (list): _description_
+            freq_band (tuple, optional): (low, high) frequencies for the filter.
+            use_bispectrum (bool): Whether to use the bispectrum to compute max and lag.
 
         Returns:
-            pd.DataFrame: _description_
+            pd.DataFrame: SC parameters and metadata for each channel.
         """
 
         self.freq_band = freq_band
@@ -73,7 +82,20 @@ class SC:
 
         return df_sc
 
-    def fit_sc(self, df_sc: pd.DataFrame, fit_mode: str, col_name: str):
+    def fit_sc(self, df_sc: pd.DataFrame, fit_mode: str, col_name: str) -> pd.DataFrame:
+        """Fir SC values across distance.
+
+        Args:
+            df_sc (pd.DataFrame): SC parameters and metadata for each channel.
+            fit_modes (str): fitting mode to use, can be fit, median or auc.
+            col_names (str): column name to use, corr or lag.
+
+        Raises:
+            ValueError: when fir mode is not implemented.
+
+        Returns:
+            pd.DataFrame: fit values
+        """
 
         if fit_mode == "fit":
             # Check type of fit

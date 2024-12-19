@@ -5,11 +5,24 @@ from mnitimescales import Load, SC
 
 
 class PipeSC:
+    """
+    Pipeline to run 'Spatial Correlation' analysis for different sleep stages.
+    1. Create epochs with desired duration and overlap.
+    2. Filter data and extract power (optional).
+    3. Compute CCF and extract max and lag.
+    4. Fit SC across distance.
+
+    Args:
+        mat_path (Path): path to the .mat file with the MNI Atlas data.
+        results_path (Path): path where to save results.
+        df_regions (pd.DataFrame): dataframe with MNI Atlas regions information.
+        stages (list, optional): sleep stags to analyze. Defaults to ["W", "N2", "N3", "R"].
+    """
 
     def __init__(
         self,
         mat_path: Path,
-        results_path: str,
+        results_path: Path,
         df_regions: pd.DataFrame,
         stages=["W", "N2", "N3", "R"],
     ):
@@ -72,6 +85,15 @@ class PipeSC:
         filt_freqs: list,
         use_bispectrum: bool,
     ):
+        """Compute CCF for epoched data.
+
+        Args:
+            epo_dur (float): epoch duration in s.
+            epo_overlap (float): epoch overlap in s.
+            filt (bool): Whether to filter data.
+            filt_freqs (list): (low, high) frequencies for the filter.
+            use_bispectrum (bool): Whether to use the bispectrum to compute max and lag.
+        """
 
         # Log analysis
         self._log_compute(
@@ -137,6 +159,12 @@ class PipeSC:
         )
 
     def run_fit(self, fit_modes: list, col_names: list):
+        """Fit Sc data across distance.
+
+        Args:
+            fit_modes (list): fitting modes to use, can be fit, median or auc.
+            col_names (list): column names to use, corr or lag.
+        """
 
         for fit_mode, col_name in zip(fit_modes, col_names):
             # Log analysis

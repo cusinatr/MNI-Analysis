@@ -7,6 +7,20 @@ pd.options.mode.chained_assignment = None  # suppress pandas' warnings
 
 
 class PipeTCSW:
+    """
+    Pipeline to run 'Slow waves + timescales' analysis.
+    1. Create epoched data data.
+    2. Compute timescales around slow wave events.
+    4. Parcellate results into a surface atlas
+
+    Args:
+        mat_path (Path): path to the .mat file with the MNI Atlas data.
+        sw_path (Path): path to the results of the slow waves detection.
+        results_path (Path): path where to save results.
+        config_path (Path): path to yaml configuration file.
+        parc_path (Path): path with parcellation files (regions coordinates and .nii).
+        stages (list, optional): sleep stags to analyze. Defaults to ["N2", "N3"].
+    """
 
     def __init__(
         self,
@@ -74,6 +88,19 @@ class PipeTCSW:
         fit_func: str,
         fit_range: list,
     ):
+        """Analyze timescales around slow waves.
+
+        Args:
+            epo_sws (float): epoch around slow waves (in s).
+            epo_dur (float): epoch duration in s.
+            epo_overlap (float): epoch overlap in s.
+            filt (bool): Whether to filter data.
+            filt_freqs (list): (low, high) frequencies for the filter.
+            nlags (int): number of lags to compute for the ACF.
+            tau_mode (str): Timescales computation modality. Can be 'fit' or 'interp'.
+            fit_func (str): function to use for fitting.
+            fit_range (list): range of fitting in s.
+        """
 
         # Log analysis
         self._log_pipe(

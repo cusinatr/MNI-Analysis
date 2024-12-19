@@ -2,13 +2,22 @@ from pathlib import Path
 import pickle
 import pandas as pd
 import numpy as np
-import mne
 from . import utils as utils_sw
 from . import plots as plots_sw
 from mnitimescales.utils import create_res_df
 
 
 class ComputeSW:
+    """_summary_
+
+    Args:
+        df_info (pd.DataFrame): _description_
+        raws (dict): _description_
+        stage (str): _description_
+        results_path (Path): _description_
+        sw_freqs (list, optional): _description_. Defaults to [0.5, 4].
+        gamma_freqs (list, optional): _description_. Defaults to [30, 80].
+    """
 
     def __init__(
         self,

@@ -49,7 +49,8 @@ class FitPSD:
         # Compute Parametrization
         patSP.prepare_data(psd_pat, stage=self.stage, label=self.stage)
         fg_pat = patSP.parametrize_psd(
-            frange=self.fit_range, aperiodic_mode=self.fit_mode, save_full=False
+            frange=self.fit_range, aperiodic_mode=self.fit_mode, save_full=False,
+            min_peak_height=0, peak_width_limits=(0.5, 12)
         )
         if plot:
             patSP.plot_parametrization(plot_range=[1, 80])

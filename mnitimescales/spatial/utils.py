@@ -27,7 +27,9 @@ def _compute_cc(data_ch1: np.ndarray, data_ch2: np.ndarray):
     # Loop over epochs
     corr_avg = []
     for k in range(len(data_ch1)):
-        ch1_norm = (data_ch1[k] - data_ch1[k].mean()) / (np.std(data_ch1[k]) * len(data_ch1[k]))
+        ch1_norm = (data_ch1[k] - data_ch1[k].mean()) / (
+            np.std(data_ch1[k]) * len(data_ch1[k])
+        )
         ch2_norm = (data_ch2[k] - data_ch2[k].mean()) / (np.std(data_ch2[k]))
         corr = signal.correlate(ch1_norm, ch2_norm, mode="same")
         lags = signal.correlation_lags(len(ch1_norm), len(ch2_norm), mode="same")
@@ -298,24 +300,34 @@ def median_sc(df_sc: pd.DataFrame, col_name: str) -> pd.DataFrame:
         index=["all"] + list(df_sc["region_1"].unique()),
     )
     df_params.loc["all", "avg"] = df_sc[col_name].abs().mean()
-    df_params.loc["all", "avg_low"] = df_sc[col_name][
-        df_sc["dist"] <= dist_threshold
-    ].abs().mean()
-    df_params.loc["all", "avg_high"] = df_sc[col_name][
-        df_sc["dist"] > dist_threshold
-    ].abs().mean()
+    df_params.loc["all", "avg_low"] = (
+        df_sc[col_name][df_sc["dist"] <= dist_threshold].abs().mean()
+    )
+    df_params.loc["all", "avg_high"] = (
+        df_sc[col_name][df_sc["dist"] > dist_threshold].abs().mean()
+    )
     for reg in df_params.index[1:]:
-        df_params.loc[reg, "avg"] = df_sc[col_name][
-            (df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)
-        ].abs().mean()
-        df_params.loc[reg, "avg_low"] = df_sc[col_name][
-            ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
-            & (df_sc["dist"] <= dist_threshold)
-        ].abs().mean()
-        df_params.loc[reg, "avg_high"] = df_sc[col_name][
-            ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
-            & (df_sc["dist"] > dist_threshold)
-        ].abs().mean()
+        df_params.loc[reg, "avg"] = (
+            df_sc[col_name][(df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)]
+            .abs()
+            .mean()
+        )
+        df_params.loc[reg, "avg_low"] = (
+            df_sc[col_name][
+                ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
+                & (df_sc["dist"] <= dist_threshold)
+            ]
+            .abs()
+            .mean()
+        )
+        df_params.loc[reg, "avg_high"] = (
+            df_sc[col_name][
+                ((df_sc["region_1"] == reg) | (df_sc["region_2"] == reg))
+                & (df_sc["dist"] > dist_threshold)
+            ]
+            .abs()
+            .mean()
+        )
 
     return df_params
 
@@ -326,7 +338,9 @@ def auc_sc(df_sc: pd.DataFrame, col_name: str) -> pd.DataFrame:
         columns=["auc"],
         index=["all"] + df_sc["region_1"].unique(),
     )
-    df_params.loc["all", "auc"] = integrate.simpson(y=df_sc[col_name].abs(), x=df_sc["dist"])
+    df_params.loc["all", "auc"] = integrate.simpson(
+        y=df_sc[col_name].abs(), x=df_sc["dist"]
+    )
     for reg in df_params.index[1:]:
         df_sc_reg = df_sc[(df_sc["region_1"] == reg) | (df_sc["region_2"] == reg)]
         df_params.loc[reg, "auc"] = integrate.simpson(
@@ -334,27 +348,3 @@ def auc_sc(df_sc: pd.DataFrame, col_name: str) -> pd.DataFrame:
         )
 
     return df_params
-
-
-# def fit_sc_bins(
-#     df_sc_bin: pd.DataFrame, col_name: str, n_min=2, upper_bounds=(100, 1, 1)
-# ):
-
-#     x = df_sc_bin["bin"].to_numpy(dtype=float)
-#     y = df_sc_bin[col_name].to_numpy(dtype=float)
-#     y_err = df_sc_bin[col_name + "_sem"].to_numpy(dtype=float)
-#     if len(y) < n_min:
-#         return np.array([np.nan, np.nan, np.nan]), np.nan
-#     try:
-#         popt, pcov = optimize.curve_fit(
-#             _exp_decay,
-#             x,
-#             y,
-#             sigma=y_err,
-#             bounds=((0, 0, 0), upper_bounds),
-#         )
-#     except RuntimeError:
-#         popt = np.array([np.nan, np.nan, np.nan])
-#         pcov = np.nan
-
-#     return popt, pcov

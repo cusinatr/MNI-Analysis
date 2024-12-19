@@ -1,6 +1,7 @@
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
+import numpy as np
 from mnitimescales import Load, FitPSD, Parcel
 
 
@@ -9,8 +10,8 @@ class PipePSD:
     Pipeline to run 'PSD parametrization' analysis for different sleep stages.
     1. Create epochs with desired duration and overlap.
     2. Filter data and extract power (optional).
-    2. Fit PSD and extract parameter.
-    3. Parcellate results into a surface atlas (HCPMMP1 supported)
+    3. Fit PSD and extract parameter.
+    4. Parcellate results into a surface atlas (HCPMMP1 supported)
 
     Args:
         mat_path (Path): path to the .mat file with the MNI Atlas data.
@@ -126,6 +127,11 @@ class PipePSD:
                 fit_range,
                 plot
             )
+
+            # Additional: remove timescales longer than twice epo dur
+            if fit_mode == "knee":
+                df_psd.loc[df_psd["tau"] > (epo_dur * 1000), "tau"] = np.nan
+
             df_psd_stages.append(df_psd)
 
             # 3) Parcellate results & save
@@ -149,6 +155,7 @@ class PipePSD:
             )
             # Save also timescale if fit is knee
             if fit_mode == "knee":
+                df_psd = df_psd.dropna(how="any")
                 df_tau_mmp, df_tau_mmp_macro = parc.parcel_mmp(df_psd, "tau")
                 self._save_results(
                     df_tau_mmp,

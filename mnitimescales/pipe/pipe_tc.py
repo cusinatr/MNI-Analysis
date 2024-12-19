@@ -9,8 +9,8 @@ class PipeTC:
     Pipeline to run 'Temporal Correlation' analysis for different sleep stages.
     1. Create epochs with desired duration and overlap.
     2. Filter data and extract power (optional).
-    2. Fit ACF and extract timescales.
-    3. Parcellate results into a surface atlas (HCPMMP1 supported)
+    3. Fit ACF and extract timescales.
+    4. Parcellate results into a surface atlas (HCPMMP1 supported)
 
     Args:
         mat_path (Path): path to the .mat file with the MNI Atlas data.
