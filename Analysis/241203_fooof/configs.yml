@@ -5,7 +5,7 @@ acf:
   xlabel: Lag [ms]
   ylabel: Autocorrelation
 acf_dir: ACF
-base_path: F:/MNIOpen/Results/timescales_broadband_knee/Pats
+base_path: F:/MNIOpen/Results/timescales_broadband_knee_1_80/Pats
 cond_colors:
 - dodgerblue
 - c

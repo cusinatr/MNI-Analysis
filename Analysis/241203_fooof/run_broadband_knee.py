@@ -17,7 +17,7 @@ mat_file = "MatlabFile.mat"
 stages = ["W", "N3", "R"]
 
 # Output folder
-out_dir = "timescales_broadband_knee"
+out_dir = "timescales_broadband_knee_1_80"
 
 # Epochs duration
 epo_dur = 1  # s
@@ -25,11 +25,11 @@ epo_overlap = 0.5  # s
 
 # Frequencies for filtering
 filt = False
-filt_freqs = [0, 80]  # Hz
+filt_freqs = []  # Hz
 
 # PSD fit parameters
 fit_mode = "knee"
-fit_range = [0.5, 80]  # Hz
+fit_range = [1, 80]  # Hz
 
 ###
 # Paths
@@ -68,5 +68,5 @@ pipe_psd.run(
     filt_freqs=filt_freqs,
     fit_mode=fit_mode,
     fit_range=fit_range,
-    plot=False
+    plot=True
 )
