@@ -1,5 +1,5 @@
 """
-Script for computing timescales and logginf analysis parameters.
+Script for computing timescales from PSD and logging analysis parameters.
 """
 
 from pathlib import Path
@@ -27,8 +27,7 @@ epo_overlap = 0.5  # s
 filt = False
 filt_freqs = [0, 80]  # Hz
 
-# ACF fit parameters
-nlags = 100  # compute all lags
+# PSD fit parameters
 fit_mode = "fixed"  # fixed, knee
 fit_range = [40, 80]  # Hz
 
