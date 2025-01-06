@@ -1,0 +1,2 @@
+Goal: compute the root mean squared error of the exponential fits
+

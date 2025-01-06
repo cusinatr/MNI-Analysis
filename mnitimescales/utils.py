@@ -1,14 +1,14 @@
-from pathlib import Path
 import warnings
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from scipy import signal
+from tqdm import tqdm
 from scipy import optimize, spatial
 from scipy.stats import pearsonr, spearmanr, bootstrap, false_discovery_control
 import statsmodels.formula.api as smf
 from sklearn.utils.validation import check_random_state
-
+from mnitimescales.parcel.utils import apply_affine
+from mnitimescales.sw.utils import compute_sw_global_threshold
 
 ###
 # General functions
@@ -25,9 +25,7 @@ def create_res_df(
 
     Args:
         df_info_pat (pd.DataFrame): metadata about patient channels.
-        pat_id (str): ID for patient.
-        age (float): age of patient.
-        gender (str): gender of patient.
+        chs_good (list): list of good channels to include.
         stage (str): sleep stage.
         columns_res (list): column names to add for results.
 
@@ -217,7 +215,7 @@ def divide_sws(
     epoch_starts = epo_times[idx_stages].reshape(-1, 1)
 
     # Compute threshold for global waves
-    glo_thre = _compute_sw_global_threshold(sw_overlap)
+    glo_thre = compute_sw_global_threshold(sw_overlap)
 
     # Loop over channels separately
     for i, ch in tqdm(enumerate(good_chs), total=len(good_chs)):
@@ -260,119 +258,25 @@ def divide_sws(
 ###
 
 
-# def get_tc_sc_corr(
-#     df_sc: dict,
-#     df_timescales: pd.DataFrame,
-#     stages: list,
-#     distances: np.ndarray,
-#     map_coords: np.ndarray,
-#     delta_d=None,
-#     corr_type="pearson",
-#     how="mean",
-#     df_avg_d=None,
-# ) -> dict:
-    
-#     if delta_d is None:
-#         delta_d = distances[1] - distances[0]  # Delta of distances blocks
-
-     
-#     if df_avg_d is None:
-#         # Compute dataframe for average cross-correlation per distance block
-#         index = pd.MultiIndex.from_product(
-#             [list(df_sc[stages[0]]["region_1"].unique()), distances],
-#             names=["region", "distance"],
-#         )
-#         df_avg_d = pd.DataFrame(
-#             columns=stages,
-#             index=index,
-#         )
-#         for reg in df_avg_d.index.get_level_values("region").unique():
-#             for dist in distances:
-#                 for stage in stages:
-#                     df_stage_dist_reg = df_sc[stage][
-#                         (
-#                             (df_sc[stage]["region_1"] == reg)
-#                             | (df_sc[stage]["region_2"] == reg)
-#                         )
-#                         & (df_sc[stage]["dist"] <= dist + delta_d)
-#                         & (df_sc[stage]["dist"] > dist - delta_d)
-#                     ]
-#                     if how == "mean":
-#                         corr_stage_dist_reg = df_stage_dist_reg["corr"].abs().mean()
-#                     elif how == "LME":
-#                         data = df_stage_dist_reg.copy()
-#                         data["corr"] = data["corr"].abs()
-#                         try:
-#                             md = smf.mixedlm("corr ~ 1", data, groups=data["pat"])
-#                             mdf = md.fit(method="bfgs")
-#                             corr_stage_dist_reg = mdf.fe_params.values[0]
-#                         except ValueError:
-#                             corr_stage_dist_reg = np.nan
-#                     df_avg_d.loc[(reg, dist), stage] = corr_stage_dist_reg
-#         df_avg_d.reset_index(inplace=True)
-
-#     # Compute correlations with TC per stage
-#     df_rhos_d = {}
-#     for stage in stages:
-#         df_rhos_d_stage = pd.DataFrame(
-#             index=df_avg_d["distance"].unique(),
-#             columns=["rho", "rho_se", "pval"],
-#             dtype=float,
-#         )
-#         # Get average tau per MNI region
-#         df_tau_stage_mni = get_avg_tau_mni(
-#             df_timescales[df_timescales["stage"] == stage].copy(), method="LME"
-#         )
-#         for dist in df_avg_d["distance"].unique():
-#             # Get spatial parameter
-#             df_spa = df_avg_d[df_avg_d["distance"] == dist].set_index("region")
-#             df_spa = df_spa[stage].dropna()
-#             # Map coords
-#             map_coords_dist = map_coords.loc[
-#                 list(
-#                     df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore")
-#                     + "_lh"
-#                 )
-#                 + list(
-#                     df_spa.index.drop(["Amygdala", "Hippocampus"], errors="ignore")
-#                     + "_rh"
-#                 )
-#             ]
-#             # Get correlation values
-#             rho, p_corr = get_pcorr_mnia(
-#                 df_tau_stage_mni.loc[df_spa.index],
-#                 df_spa,
-#                 map_coords_dist,
-#                 method="vasa",
-#                 corr_type=corr_type,
-#             )
-#             rho_boot = get_rho_boot(
-#                 df_tau_stage_mni.loc[df_spa.index],
-#                 df_spa,
-#                 corr_type=corr_type,
-#                 nboot=1000,  # keep bootstraps lower for comp. time
-#             )
-#             df_rhos_d_stage.loc[dist, "rho"] = rho
-#             df_rhos_d_stage.loc[dist, "rho_se"] = rho_boot.standard_error
-#             df_rhos_d_stage.loc[dist, "pval"] = p_corr
-
-#         # Correct p-values with FDR
-#         df_rhos_d_stage.loc[:, "pval"] = false_discovery_control(
-#             df_rhos_d_stage.loc[:, "pval"]
-#         )
-
-#         df_rhos_d[stage] = df_rhos_d_stage.copy()
-
-#     return df_rhos_d
-
 def get_tc_sc_corr(
     df_avg_d: pd.DataFrame,
     df_avg_tau: pd.DataFrame,
     stages: list,
-    map_coords: np.ndarray,
+    map_coords: pd.DataFrame,
     corr_type="pearson",
 ) -> dict:
-    
+    """Get correlation between timescales and SC across areas.
+
+    Args:
+        df_avg_d (pd.DataFrame): SC per area per distance bin.
+        df_avg_tau (pd.DataFrame): timescales per area.
+        stages (list): sleep stages to analyze.
+        map_coords (pd.DataFrame): MNI coordinates of centroids of all areas.
+        corr_type (str, optional): type of correlation to use. Defaults to "pearson".
+
+    Returns:
+        dict: correlation values for each stage.
+    """
 
     # Compute correlations with TC per stage
     df_rhos_d = {}
@@ -732,6 +636,17 @@ def gen_spinsamples(
 
 
 def get_rho_boot(x: np.ndarray, y: np.ndarray, corr_type="spearman", nboot=9999):
+    """Compute bootstrapped value of correlation coefficient.
+
+    Args:
+        x (np.ndarray): independent variable.
+        y (np.ndarray): dependent variable.
+        corr_type (str, optional): type of correlation to use. Defaults to "spearman".
+        nboot (int, optional): number of bootstraps. Defaults to 9999.
+
+    Returns:
+        results of bootstrap from scipy.stats
+    """
 
     # Select function to use
     if corr_type == "spearman":
@@ -759,25 +674,25 @@ def get_rho_boot(x: np.ndarray, y: np.ndarray, corr_type="spearman", nboot=9999)
 def get_pcorr(
     x: np.ndarray,
     y: np.ndarray,
-    map_coords: np.ndarray,
+    map_coords: pd.DataFrame,
     hemiid=None,
     nspins=1000,
     method="original",
     corr_type="spearman",
 ):
-    """_summary_
+    """Compute pvalue of correlation corrected for spatial autocorrelation.
 
     Args:
-        x (np.ndarray): _description_
-        y (np.ndarray): _description_
-        map_coords (np.ndarray): _description_
-        hemiid (_type_, optional): _description_. Defaults to None.
-        nspins (int, optional): _description_. Defaults to 1000.
-        method (str, optional): _description_. Defaults to "original".
-        corr_type (str, optional): _description_. Defaults to "spearman".
+        x (np.ndarray): independent variable.
+        y (np.ndarray): dependent variable.
+        map_coords (pd.DataFrame): MNI coordinates of centroids of all areas.
+        hemiid (optional): ID of hemisphere to use. Defaults to None.
+        nspins (int, optional): number of spins (permutations). Defaults to 1000.
+        method (str, optional): method for permuting. Defaults to "original".
+        corr_type (str, optional): type of correlation to use. Defaults to "spearman".
 
     Returns:
-        _type_: _description_
+        tuple: correlation value and corrected pvalue
     """
 
     # Check hemiid
@@ -821,6 +736,21 @@ def get_pcorr_mnia(
     method="original",
     corr_type="spearman",
 ):
+    """Compute pvalue of correlation corrected for spatial autocorrelation
+    for the MNI Atlas.
+
+    Args:
+        x (np.ndarray): independent variable.
+        y (np.ndarray): dependent variable.
+        map_coords (pd.DataFrame): MNI coordinates of centroids of all areas.
+        hemiid (optional): ID of hemisphere to use. Defaults to None.
+        nspins (int, optional): number of spins (permutations). Defaults to 1000.
+        method (str, optional): method for permuting. Defaults to "original".
+        corr_type (str, optional): type of correlation to use. Defaults to "spearman".
+
+    Returns:
+        tuple: correlation value and corrected pvalue
+    """
 
     # Separate cortical and amygdala/hippocampus regions
     ha_keys = y.index.intersection(["Amygdala", "Hippocampus"])

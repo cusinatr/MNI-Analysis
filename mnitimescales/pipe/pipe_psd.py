@@ -1,19 +1,24 @@
 from pathlib import Path
 from datetime import datetime
 import pandas as pd
+import numpy as np
 from mnitimescales import Load, FitPSD, Parcel
 
 
 class PipePSD:
     """
-    _summary_
+    Pipeline to run 'PSD parametrization' analysis for different sleep stages.
+    1. Create epochs with desired duration and overlap.
+    2. Filter data and extract power (optional).
+    3. Fit PSD and extract parameter.
+    4. Parcellate results into a surface atlas (HCPMMP1 supported)
 
     Args:
-        mat_path (Path): path to the .mat file with the data.
-        results_path (str): _description_
-        config_path (str): _description_
-        parc_path (Path): _description_
-        stages (list, optional): _description_. Defaults to ["W", "N2", "N3", "R"].
+        mat_path (Path): path to the .mat file with the MNI Atlas data.
+        results_path (Path): path where to save results.
+        config_path (Path): path to yaml configuration file.
+        parc_path (Path): path with parcellation files (regions coordinates and .nii).
+        stages (list, optional): sleep stags to analyze. Defaults to ["W", "N2", "N3", "R"].
     """
 
     def __init__(
@@ -70,7 +75,19 @@ class PipePSD:
         filt_freqs: list,
         fit_mode: str,
         fit_range: list,
+        plot=True
     ):
+        """Function to actually run the pipeline.
+
+        Args:
+            epo_dur (float): epoch duration in s.
+            epo_overlap (float): epoch overlap in s.
+            filt (bool): Whether to filter data.
+            filt_freqs (list): (low, high) frequencies for the filter.
+            fit_mode (str): PSD fitting mode, either 'fixed' or 'knee'.
+            fit_range (list): frequency range of PSD fitting.
+            plot (bool, optional): whether to plot results for each patient. Defaults to True.
+        """
 
         # Log analysis
         self._log_pipe(
@@ -108,7 +125,13 @@ class PipePSD:
             df_psd = fit_psd.compute_psd(
                 fit_mode,
                 fit_range,
+                plot
             )
+
+            # Additional: remove timescales longer than twice epo dur
+            if fit_mode == "knee":
+                df_psd.loc[df_psd["tau"] > (epo_dur * 1000), "tau"] = np.nan
+
             df_psd_stages.append(df_psd)
 
             # 3) Parcellate results & save
@@ -132,6 +155,7 @@ class PipePSD:
             )
             # Save also timescale if fit is knee
             if fit_mode == "knee":
+                df_psd = df_psd.dropna(how="any")
                 df_tau_mmp, df_tau_mmp_macro = parc.parcel_mmp(df_psd, "tau")
                 self._save_results(
                     df_tau_mmp,

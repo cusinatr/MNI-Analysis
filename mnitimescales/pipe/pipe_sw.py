@@ -9,6 +9,19 @@ pd.options.mode.chained_assignment = None  # suppress pandas' warnings
 
 
 class PipeSW:
+    """
+    Pipeline to run 'Slow waves' analysis.
+    1. Create mne.Raw data.
+    2. Filter data in sw and gamma frequencies.
+    3. Detect SW events.
+    4. Parcellate results into a surface atlas (HCPMMP1 supported)
+
+    Args:
+        mat_path (Path): path to the .mat file with the MNI Atlas data.
+        results_path (Path): path where to save results.
+        parc_path (Path): path with parcellation files (regions coordinates and .nii).
+        stages (list, optional): sleep stags to analyze. Defaults to ["N2", "N3"].
+    """
 
     def __init__(
         self,
@@ -69,6 +82,18 @@ class PipeSW:
         center_sws: str,
         t_epo_sws: float,
     ):
+        """Detect slow waves and parcellate density.
+
+        Args:
+            sw_freqs (tuple): Bandpass frequency for slow waves band.
+            gamma_freqs (tuple): Bandpass frequency for gamma band.
+            dur_threshold (tuple): sw min, max duration in s.
+            dur_neg (tuple): sw min, max duration of negative peak in s.
+            dur_pos (tuple): sw min, max duration of positive peak in s.
+            amp_percentile (float): percentiale of amplitudes for threshold.
+            center_sws (str): where to center the sws.
+            t_epo_sws (float): epochs around center_sws to use.
+        """
 
         # Log analysis
         self._log_pipe(

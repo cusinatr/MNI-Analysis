@@ -10,12 +10,14 @@ from .utils import (
 )
 
 
-# TODO: method to also load & transform the MNI-Destrieux atlas
-
-
 class Parcel:
 
     def __init__(self, parc_path: Path):
+        """Parcel data per channel into HCP-MMP parcellation
+
+        Args:
+            parc_path (Path): path of directory with parcel data.
+        """
 
         # Import atlases for parcellation
         # HCP-MMP atlas
@@ -45,6 +47,16 @@ class Parcel:
         )
 
     def parcel_mmp(self, df_metric: pd.DataFrame, metric_name: str, d=4):
+        """Parcel the metric in df_metric.
+
+        Args:
+            df_metric (pd.DataFrame): dataframe with channels metadata (MNI coordinates) and metric values.
+            metric_name (str): name of the metric as found in df_metric.
+            d (int, optional): 'smoothing' for projection. Defaults to 4.
+
+        Returns:
+            (pd.DataFrame, pd.DataFrame): values metrics in HCP-MMP parcels (all and macro average)
+        """
 
         # Compute values for each subject and voxel of the parcellation
         metric_weighted, W_max = compute_parc_metric(
@@ -68,9 +80,7 @@ class Parcel:
         )
 
         # Compute also metrics for "macro" regions
-        df_metric_macro = pd.DataFrame(
-            columns=np.unique(self.mmp_aggr["macro_labels"])
-        )
+        df_metric_macro = pd.DataFrame(columns=np.unique(self.mmp_aggr["macro_labels"]))
         for i_r, r in self.mmp_aggr.groupby("macro_labels"):
             df_metric_macro[i_r] = compute_weighted_average(
                 df_metric_weighted_avg[r["parcel"]],
@@ -84,7 +94,15 @@ class Parcel:
 
         return df_metric_mmp, df_metric_mmp_macro
 
-    def parcel_mni(self, df_metric: pd.DataFrame):
+    def parcel_mni(self, df_metric: pd.DataFrame) -> pd.DataFrame:
+        """Parcellation in the MNI Atlas (no smoothing).
+
+        Args:
+            df_metric (pd.DataFrame): dataframe with channels metadata (MNI coordinates) and metric values.
+
+        Returns:
+            pd.DataFrame: average metric per parcel.
+        """
 
         # MNI macro
         df_metric_macro_mni = []

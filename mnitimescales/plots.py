@@ -175,7 +175,7 @@ def plot_conds_regs(
     show_lines=True,
     markersize=4,
 ) -> plt.axes:
-    """BAr or point plot of median metric for each region, diveded in conditions.
+    """Bar or point plot of median metric for each region, diveded in conditions.
 
     Args:
         ax (plt.axes): axes to plot on.
@@ -268,7 +268,7 @@ def plot_conds_regs(
                     [iqr[0], iqr[1]],
                     [ticks_regions[i] + ticks_conds[j]] * 2,
                     c=colors_cond[cond],
-                    lw=1,
+                    lw=0.6,
                     solid_capstyle="round",
                     zorder=4,
                 )
@@ -323,7 +323,7 @@ def plot_conds_regs(
         rotation=0,
         va="center",
         ha="right",
-        fontsize=fsize.TICK_SIZE,
+        fontsize=fsize.TICK_SIZE + 1,
     )
     ax.set_xlabel(metric_name, fontsize=fsize.LABEL_SIZE)
 
@@ -336,7 +336,9 @@ def plot_conds_regs(
         if cond in Conds:
             leg.append(mpatches.Patch(color=color, alpha=1.0, linewidth=0))
             leg_names.append(cond)
-    ax.legend(leg, leg_names, frameon=False, fontsize=fsize.TEXT_SIZE)
+    ax.legend(
+        leg, leg_names, frameon=False, fontsize=fsize.TEXT_SIZE, loc="lower right"
+    )
 
 
 def plot_parcellated_metric(
@@ -357,18 +359,22 @@ def plot_parcellated_metric(
     """Plot parcellated metric on inflated brain.
 
     Args:
-        parc_metric (np.ndarray): _description_
-        parc_labels (np.ndarray): _description_
-        subjects_dir (str): _description_
-        log_scale (bool, optional): _description_. Defaults to False.
-        minmax (tuple, optional): _description_. Defaults to (None, None).
-        zero_center (bool, optional): _description_. Defaults to False.
-        title (str, optional): _description_. Defaults to "".
-        cmap (str, optional): _description_. Defaults to "inferno".
-        label (str, optional): _description_. Defaults to "Timescales [ms]".
+        parc_metric (np.ndarray): metric on brain parcels.
+        parc_labels (np.ndarray): labels for the parcellation to use.
+        subjects_dir (str): dir where surface data is (e.g. mne one).
+        labels_mne (list): mne.Label object with info on region.
+        log_scale (bool, optional): whether to use log scale for colorbar. Defaults to False.
+        minmax (tuple, optional): min, max values for colorbar. Defaults to (None, None).
+        zero_center (bool, optional): whether to center colorbar at 0. Defaults to False.
+        title (str, optional): title for the plot. Defaults to "".
+        cmap (str, optional): colormap. Defaults to "inferno".
+        label (str, optional): label of the colorbar. Defaults to "Timescales [ms]".
+        cbar_format (str): label format for colorbar. Defaults to "1f".
+        cbar_ticks (list, optional): provided ticks for colorbar. Defaults to None.
+        figsize (tuple): figure size. Defaults to (20, 15).
 
     Returns:
-        _type_: _description_
+        figure, axes
     """
 
     Brain = get_brain_class()
@@ -447,13 +453,13 @@ def plot_parcellated_metric(
         cbar.set_ticks(cbar_ticks)
     else:
         cbar.set_ticks([minv, maxv])
-    cbar.set_label(label=label, size=32)  # fontsize_fig * fsize.LABEL_SIZE)
+    cbar.set_label(label=label, size=32)
     cbar.mappable.set_clim(minv, maxv)
-    cbar.ax.tick_params(labelsize=25)  # fontsize_fig * fsize.TICK_SIZE)
+    cbar.ax.tick_params(labelsize=25)
 
     ax.set_xticks([])
     ax.set_yticks([])
-    ax.set_title(title, fontsize=32)  # fontsize_fig * fsize.TITLE_SIZE)
+    ax.set_title(title, fontsize=32)
     _format_spines(ax, s_inv=["top", "right", "bottom", "left"])
 
     return fig, ax
@@ -549,18 +555,7 @@ def bar_plot(
     y_label="Timescale [ms]",
     title="",
 ):
-    """_summary_
-
-    Args:
-        ax (plt.Axes): _description_
-        df_plot (pd.DataFrame): _description_
-        y_lim (tuple, optional): _description_. Defaults to (None, None).
-        y_label (str, optional): _description_. Defaults to "Timescale [ms]".
-        title (str, optional): _description_. Defaults to "".
-
-    Returns:
-        _type_: _description_
-    """
+    """Bar plot with average timescales value."""
 
     ax.bar(range(len(df_plot)), df_plot["mean"].sort_values(), color="k", alpha=0.5)
     ax.errorbar(
@@ -585,6 +580,7 @@ def bar_plot(
 
     return ax
 
+
 def half_violin_plot(
     ax: plt.Axes,
     y_data: float,
@@ -605,7 +601,9 @@ def half_violin_plot(
         ci (list): (lower, upper) conf. interval.
         y_boot (np.ndarray): bootstraps of the y value.
         color (str): color of the half violin. Defaults to str.
+        pval (str, optional): pvalue to annotate. Defaults to None.
         alpha (float, optional): Alpha level of the half violin. Defaults to 0.5.
+        add_line (bool, optional): whthwer to add a line at 0. Defaults to False.
 
     Returns:
         plt.Axes: modified axes.
@@ -648,6 +646,15 @@ def half_violin_plot(
 
 
 def slope_plot(ax: plt.Axes, df_plot: pd.DataFrame):
+    """Slope plot with values per region for different stages.
+
+    Args:
+        ax (plt.Axes): axis to plot on.
+        df_plot (pd.DataFrame): dataframe with values per region per stage.
+
+    Returns:
+        plt.Axes: modified axis.
+    """
 
     # Extract labels
     labs = df_plot.columns.to_list()
@@ -761,20 +768,29 @@ def plot_corr(
     xlims=None,
     ylims=None,
 ):
-    """Plot correlation of structure and timescales.
+    """Plot correlation as scatter plot and correlation line
+    with prediction interval.
 
     Args:
-        ax (plt.Axes): Axes to draw on.
+        ax (plt.Axes): axis to draw on.
         x (np.ndarray): x values.
         y (np.ndarray): y values.
-        rand_obj (_type_): Null permutations object to calculate corrected p-value.
-        corr_type (str, optional): Type of correlation. Can be pearson or spearman. Defaults to "spearman".
-        stage (str, optional): Sleep stage. Defaults to "".
-        color (str, optional): Defaults to "k".
-        title (str, optional): Defaults to "".
+        rho (float): correlation coefficient.
+        p_corr (float): pvalue of correlation.
+        xy_annot (tuple, optional): axis coordinates for annotating correlation value. Defaults to (0.7, 0.85).
+        markersize (int, optional): size of scatter. Defaults to 12.
+        alpha (float, optional): confidence level for prediction interval. Defaults to 0.05.
+        color (str, optional): color of scatter. Defaults to "k".
+        color_line (str, optional): color of correlation line. Defaults to None.
+        figsize (tuple, optional): size of figure. Defaults to (6, 6).
+        title (str, optional): plot title. Defaults to "".
+        xlabel (str, optional): x axis label. Defaults to "".
+        ylabel (str, optional): y axis label. Defaults to "".
+        xlims (tuple, optional): x axis limits. Defaults to None.
+        ylims (tuple, optional): y axis limits. Defaults to None.
 
     Returns:
-        ax: plotted Axes object
+        plt.Axes: modified axis
     """
 
     # Compute linear regression
@@ -854,7 +870,6 @@ def plot_stages_diff(df_plot: pd.DataFrame, param: str, avg="mean"):
     axs[0].set_title("Timescales across regions", fontsize=fsize.LABEL_SIZE)
 
     # Figure with relative values (to Wake)
-    # TODO: adjust how statisctic is computed
     df_plot_rel = pd.DataFrame(columns=["region", "stage", param], index=df_plot.index)
     for region in df_plot["region"].unique():
         df_plot_rel.loc[df_plot["region"] == region, "region"] = region
@@ -899,6 +914,21 @@ def plot_sc_fit(
     figsize=(8, 8),
     dpi=300,
 ):
+    """Plot exponential decay of SC across distance.
+
+    Args:
+        data_stages (dict): cross-correlation dataframe for each stage.
+        params_stages (dict): fit parameters for each stage.
+        colors_stage (dict): colors for each stage.
+        data_name (str, optional): column in dataframe wit CC values. Defaults to "corr".
+        ylabel (str, optional): y axis label. Defaults to "Max cross-correlation".
+        dict_stages (dict, optional): stage names to plot. Defaults to None.
+        figsize (tuple, optional): size of figure. Defaults to (8, 8).
+        dpi (int, optional): figure resolution. Defaults to 300.
+
+    Returns:
+        figure, axes
+    """
 
     gs_kw = dict(width_ratios=[2, 1])
     fig, axd = plt.subplot_mosaic(
@@ -982,6 +1012,9 @@ def plot_sc_fit_2(
     ylim=(0, 1),
     dpi=300,
 ):
+    """
+    As plot_sc_fit but with bigger figures per stage.
+    """
 
     fig, axs = plt.subplots(
         3, 1, figsize=_get_figsize_inches(figsize), dpi=dpi, layout="constrained"
@@ -1042,6 +1075,22 @@ def plot_tc_sc_corr(
     ylabel="",
     ylims=None,
 ):
+    """Plot correlation values of timescales and SC across distance bins.
+
+    Args:
+        ax (plt.Axes): axis to plot on.
+        df_rhos_d (pd.DataFrame): correlation values across distance bins.
+        color (str, optional): color for lines. Defaults to "k".
+        color_stars (str, optional): color for significance markers. Defaults to None.
+        label (str, optional): line label. Defaults to "".
+        title (str, optional): plot title. Defaults to "".
+        xlabel (str, optional): x axis label. Defaults to "".
+        ylabel (str, optional): y axis label. Defaults to "".
+        ylims (tuple, optional): y axis limits. Defaults to None.
+
+    Returns:
+        plt.Axes: modifies axis
+    """
 
     ax.plot(df_rhos_d.index, df_rhos_d["rho"], lw=2, c=color, label=label)
     ax.fill_between(

@@ -1,0 +1,36 @@
+acf:
+  figsizes:
+  - 6
+  - 4
+  xlabel: Lag [ms]
+  ylabel: Autocorrelation
+acf_dir: ACF
+base_path: F:/MNIOpen/Results/timescales_broadband_knee_1_80/Pats
+cond_colors:
+- dodgerblue
+- c
+- purple
+- g
+- r
+fif_dir: ProcData
+psd:
+  figsizes:
+  - 6
+  - 8
+  xlabel: f [Hz]
+  ylabel: PSD [a.u.]
+psd_dir: PSD
+saving_format: pdf
+stage_colors:
+  ? ''
+  : orange
+  n1: dodgerblue
+  n2: c
+  n3: purple
+  nrem1: dodgerblue
+  nrem2: c
+  nrem3: purple
+  r: g
+  rem: g
+  w: r
+  wake: r

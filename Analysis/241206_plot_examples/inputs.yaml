@@ -1,0 +1,21 @@
+base_path: F:\MNIOpen\
+results_dir: Results
+data_dir: timescales_broadband
+raw_dir: Data/Raw
+acf_dir: ACF
+mat_file: MatlabFile.mat
+
+# Data to use
+pats: [4, 10, 10, 26, 26]
+chans: ["GD004Rt6", "GD010Rs2", "GD010Ro2", "GD026Ln_12", "GD026Ls_2"]
+
+stages: ["W", "N3", "R"]
+color_stages:
+  W: red
+  N3: purple
+  R: green
+
+title_dict:
+  W: Wake
+  N3: NREM3
+  R: REM

@@ -1,0 +1,1 @@
+Plot some exemplar channels together with their ACF

@@ -6,21 +6,25 @@ from mnitimescales import Load, FitACF, Parcel
 
 class PipeTC:
     """
-    _summary_
+    Pipeline to run 'Temporal Correlation' analysis for different sleep stages.
+    1. Create epochs with desired duration and overlap.
+    2. Filter data and extract power (optional).
+    3. Fit ACF and extract timescales.
+    4. Parcellate results into a surface atlas (HCPMMP1 supported)
 
     Args:
-        mat_path (Path): path to the .mat file with the data.
-        results_path (str): _description_
-        config_path (str): _description_
-        parc_path (Path): _description_
-        stages (list, optional): _description_. Defaults to ["W", "N2", "N3", "R"].
+        mat_path (Path): path to the .mat file with the MNI Atlas data.
+        results_path (Path): path where to save results.
+        config_path (Path): path to yaml configuration file.
+        parc_path (Path): path with parcellation files (regions coordinates and .nii).
+        stages (list, optional): sleep stags to analyze. Defaults to ["W", "N2", "N3", "R"].
     """
 
     def __init__(
         self,
         mat_path: Path,
-        results_path: str,
-        config_path: str,
+        results_path: Path,
+        config_path: Path,
         parc_path: Path,
         stages=["W", "N2", "N3", "R"],
     ):
@@ -32,6 +36,13 @@ class PipeTC:
         self.stages = stages
 
     def _save_results(self, df: pd.DataFrame, save_path: Path, save_name: str):
+        """Save dataframe.
+
+        Args:
+            df (pd.DataFrame): dataframe
+            save_path (Path): path for saving
+            save_name (str): saving name
+        """
 
         save_path.mkdir(parents=True, exist_ok=True)
         df.to_csv(save_path.joinpath(save_name + ".csv"))
@@ -76,7 +87,21 @@ class PipeTC:
         tau_mode: str,
         fit_func: str,
         fit_range: list,
+        plot=True
     ):
+        """Function to actually run the pipeline.
+
+        Args:
+            epo_dur (float): epoch duration in s.
+            epo_overlap (float): epoch overlap in s.
+            filt (bool): Whether to filter data.
+            filt_freqs (list): (low, high) frequencies for the filter.
+            nlags (int): number of lags to compute for the ACF.
+            tau_mode (str): Timescales computation modality. Can be 'fit' or 'interp'.
+            fit_func (str): function to use for fitting.
+            fit_range (list): range of fitting in s.
+            plot (bool, optional): whether to plot results for each patient. Defaults to True.
+        """
         
         # Log analysis
         self._log_pipe(
@@ -118,6 +143,7 @@ class PipeTC:
                 tau_mode,
                 fit_func,
                 fit_range,
+                plot
             )
             df_timescales_stages.append(df_timescales)
 

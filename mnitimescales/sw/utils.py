@@ -11,6 +11,7 @@ def load_hypnogram(raw: mne.io.RawArray, stage: str, bads_buffer=0.0) -> np.ndar
 
     Args:
         raw (mne.io.RawArray): MNE Raw object with bad periods.
+        stage (str): sleep stage to select.
         bads_buffer (int, optional): Periods around bads to mark as artifacts, in s. Defaults to 0.
 
     Returns:
@@ -67,7 +68,8 @@ def downsample_raw(raw):
 
 
 def _epoch_sws(sw_events, data_raw, ch_names, sfreq, center, t_around=2):
-    """Get data around slow waves."""
+    """Get data around slow waves.
+    Fast computing through slicing and broadcasting."""
 
     # Seconds to timepoints
     t_around_tps = int(t_around * sfreq)

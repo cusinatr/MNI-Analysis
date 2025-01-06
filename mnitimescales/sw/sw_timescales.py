@@ -9,14 +9,15 @@ from mnitimescales.utils import create_res_df
 
 
 class FitAcfSw:
-    """_summary_
+    """Compute timescales around slow waves with a sliding window.
 
     Args:
-        df_info (pd.DataFrame): _description_
-        raws (dict): _description_
-        stage (str): _description_
-        results_path (str): _description_
-        config_path (str): _description_
+        df_info (pd.DataFrame): metadata for every channel.
+        raws (dict): mne.Raw data for every patient. Keys are patient ID.
+        stage (str): sleep stage to analyze.
+        sw_path (Path): where SW events are stored.
+        results_path (Path): where to save results.
+        config_path (Path): yml file with analysis configurations.
     """
 
     def __init__(
@@ -160,16 +161,20 @@ class FitAcfSw:
         fit_func: str,
         fit_range: list,
     ) -> pd.DataFrame:
-        """_summary_
+        """Compute timescales in a sliding manner.
+        ACFs from different SWs are averaged before computing timescales.
 
         Args:
-            nlags (int): _description_
-            tau_mode (str): _description_
-            fit_func (str): _description_
-            fit_range (list): _description_
+            epo_sws (float): time around SW to consider.
+            epo_dur (float): duration on ACF epochs.
+            epo_overlap (float): overlap of ACF epochs.
+            nlags (int): number of lags to compute for the ACF.
+            tau_mode (str): Timescales computation modality. Can be 'fit' or 'interp'.
+            fit_func (str): function to use for fitting.
+            fit_range (list): range of fitting in s.
 
         Returns:
-            pd.DataFrame: _description_
+            pd.DataFrame: timescale values for every channel and timepoint.
         """
 
         self.epo_sws = epo_sws

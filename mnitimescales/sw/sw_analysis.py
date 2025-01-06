@@ -2,13 +2,24 @@ from pathlib import Path
 import pickle
 import pandas as pd
 import numpy as np
-import mne
 from . import utils as utils_sw
 from . import plots as plots_sw
 from mnitimescales.utils import create_res_df
 
 
 class ComputeSW:
+    """Detect Slow Waves per channel in iEEG using gamma power for bipolar referencing.
+    The techniques is used in: https://onlinelibrary.wiley.com/doi/10.1111/epi.13380
+    The paramters for SWs are inspired from: https://www.nature.com/articles/s41593-023-01381-w
+
+    Args:
+        df_info (pd.DataFrame): metadata for every channel.
+        raws (dict): mne.Raw data for every patient. Keys are patient ID.
+        stage (str): sleep stage to analyze.
+        results_path (Path): where to save results.
+        sw_freqs (list, optional): Filter frequencies for SW band. Defaults to [0.5, 4].
+        gamma_freqs (list, optional): Filter frequencies for gamma band. Defaults to [30, 80].
+    """
 
     def __init__(
         self,
@@ -118,7 +129,20 @@ class ComputeSW:
         amp_percentile=25,
         center_sws="NegPeak",
         t_epo_sws=2,
-    ):
+    ) -> pd.DataFrame:
+        """Detect slow wave events in each channel.
+
+        Args:
+            dur_threshold (tuple, optional): min, max SW duration in s. Defaults to (0.5, 2).
+            dur_neg (tuple, optional): min, max SW negative peak duration in s. Defaults to (0.1, 2).
+            dur_pos (tuple, optional): min, max SW positive peak duration in s. Defaults to (0.1, 2).
+            amp_percentile (int, optional): percentile of highest-amplitude SW to keep. Defaults to 25.
+            center_sws (str, optional): temporal center of SW. Defaults to "NegPeak".
+            t_epo_sws (int, optional): time around center for epochs. Defaults to 2.
+
+        Returns:
+            pd.DataFrame: dataframe with every detected SW.
+        """
 
         self.dur_threshold = dur_threshold
         self.dur_neg = dur_neg
