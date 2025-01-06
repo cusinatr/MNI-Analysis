@@ -119,8 +119,6 @@ def plot_sw_gamma(
     Args:
         epo_swa (dict): Low-filtered data around SWs for each channel (keys).
         epo_gamma (dict): Gamma-filtered data around SWs for each channel (keys).
-        info_df (pd.DataFrame): dataframe with channels metadata (good/bad).
-        df_labels (pd.DataFrame): dataframe with channels labels.
         t_epoch_sws (float): s around SWs to plot.
         figsize (tuple, optional): Size of each subplot. Defaults to (6, 4.5).
         show (bool, optional): Whether to show the figure. Defaults to False.
@@ -288,13 +286,12 @@ def plot_sw_loc_glo(
     save_name="sw_loc_glo",
     save_format="png",
 ):
-    """Plot average loca / global SWs for each channel.
+    """Plot average local / global SWs for each channel.
 
     Args:
         epo_swa (dict): Low-filtered data around SWs for each channel (keys).
         sw_overlap (dict): dict with SW overlap for each channel (keys).
         thre_glo (float): threshold to separate local / global SWs.
-        info_df (pd.DataFrame): dataframe with channels metadata (good/bad).
         t_epoch_sws (float): s around SWs to plot.
         figsize (tuple, optional): Size of each subplot. Defaults to (6, 4.5).
         show (bool, optional): Whether to show the figure. Defaults to False.

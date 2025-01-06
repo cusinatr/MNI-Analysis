@@ -1,14 +1,14 @@
-from pathlib import Path
 import warnings
 from copy import deepcopy
 import pandas as pd
 import numpy as np
-from scipy import signal
+from tqdm import tqdm
 from scipy import optimize, spatial
 from scipy.stats import pearsonr, spearmanr, bootstrap, false_discovery_control
 import statsmodels.formula.api as smf
 from sklearn.utils.validation import check_random_state
-
+from mnitimescales.parcel.utils import apply_affine
+from mnitimescales.sw.utils import compute_sw_global_threshold
 
 ###
 # General functions
@@ -25,9 +25,7 @@ def create_res_df(
 
     Args:
         df_info_pat (pd.DataFrame): metadata about patient channels.
-        pat_id (str): ID for patient.
-        age (float): age of patient.
-        gender (str): gender of patient.
+        chs_good (list): list of good channels to include.
         stage (str): sleep stage.
         columns_res (list): column names to add for results.
 
@@ -217,7 +215,7 @@ def divide_sws(
     epoch_starts = epo_times[idx_stages].reshape(-1, 1)
 
     # Compute threshold for global waves
-    glo_thre = _compute_sw_global_threshold(sw_overlap)
+    glo_thre = compute_sw_global_threshold(sw_overlap)
 
     # Loop over channels separately
     for i, ch in tqdm(enumerate(good_chs), total=len(good_chs)):
@@ -264,9 +262,21 @@ def get_tc_sc_corr(
     df_avg_d: pd.DataFrame,
     df_avg_tau: pd.DataFrame,
     stages: list,
-    map_coords: np.ndarray,
+    map_coords: pd.DataFrame,
     corr_type="pearson",
 ) -> dict:
+    """Get correlation between timescales and SC across areas.
+
+    Args:
+        df_avg_d (pd.DataFrame): SC per area per distance bin.
+        df_avg_tau (pd.DataFrame): timescales per area.
+        stages (list): sleep stages to analyze.
+        map_coords (pd.DataFrame): MNI coordinates of centroids of all areas.
+        corr_type (str, optional): type of correlation to use. Defaults to "pearson".
+
+    Returns:
+        dict: correlation values for each stage.
+    """
 
     # Compute correlations with TC per stage
     df_rhos_d = {}
@@ -626,6 +636,17 @@ def gen_spinsamples(
 
 
 def get_rho_boot(x: np.ndarray, y: np.ndarray, corr_type="spearman", nboot=9999):
+    """Compute bootstrapped value of correlation coefficient.
+
+    Args:
+        x (np.ndarray): independent variable.
+        y (np.ndarray): dependent variable.
+        corr_type (str, optional): type of correlation to use. Defaults to "spearman".
+        nboot (int, optional): number of bootstraps. Defaults to 9999.
+
+    Returns:
+        results of bootstrap from scipy.stats
+    """
 
     # Select function to use
     if corr_type == "spearman":
@@ -653,12 +674,26 @@ def get_rho_boot(x: np.ndarray, y: np.ndarray, corr_type="spearman", nboot=9999)
 def get_pcorr(
     x: np.ndarray,
     y: np.ndarray,
-    map_coords: np.ndarray,
+    map_coords: pd.DataFrame,
     hemiid=None,
     nspins=1000,
     method="original",
     corr_type="spearman",
 ):
+    """Compute pvalue of correlation corrected for spatial autocorrelation.
+
+    Args:
+        x (np.ndarray): independent variable.
+        y (np.ndarray): dependent variable.
+        map_coords (pd.DataFrame): MNI coordinates of centroids of all areas.
+        hemiid (optional): ID of hemisphere to use. Defaults to None.
+        nspins (int, optional): number of spins (permutations). Defaults to 1000.
+        method (str, optional): method for permuting. Defaults to "original".
+        corr_type (str, optional): type of correlation to use. Defaults to "spearman".
+
+    Returns:
+        tuple: correlation value and corrected pvalue
+    """
 
     # Check hemiid
     if hemiid is None:
@@ -701,6 +736,21 @@ def get_pcorr_mnia(
     method="original",
     corr_type="spearman",
 ):
+    """Compute pvalue of correlation corrected for spatial autocorrelation
+    for the MNI Atlas.
+
+    Args:
+        x (np.ndarray): independent variable.
+        y (np.ndarray): dependent variable.
+        map_coords (pd.DataFrame): MNI coordinates of centroids of all areas.
+        hemiid (optional): ID of hemisphere to use. Defaults to None.
+        nspins (int, optional): number of spins (permutations). Defaults to 1000.
+        method (str, optional): method for permuting. Defaults to "original".
+        corr_type (str, optional): type of correlation to use. Defaults to "spearman".
+
+    Returns:
+        tuple: correlation value and corrected pvalue
+    """
 
     # Separate cortical and amygdala/hippocampus regions
     ha_keys = y.index.intersection(["Amygdala", "Hippocampus"])
